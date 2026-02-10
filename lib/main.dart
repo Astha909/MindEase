@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'controllers/auth_controller.dart';
-import 'services/chat_service.dart';git
+import 'services/chat_service.dart';
 import 'services/emergency_service.dart';
 import 'services/wellness_service.dart';
 import 'ai/ai_service.dart';
