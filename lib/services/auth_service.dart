@@ -1,44 +1,43 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+bool _isValidEmail(String email) {
+  final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+  return emailRegex.hasMatch(email);
+}
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // REGISTER + CREATE FIRESTORE PROFILE
+  // REGISTER (AUTH ONLY)
   Future<User?> registerWithEmail({
     required String email,
     required String password,
-    required String name,
-    required int age,
-    required String gender,
-    String? sexuality,
   }) async {
+    if (email.trim().isEmpty) {
+      throw Exception("Email cannot be empty");
+    }
+
+    if (!_isValidEmail(email)) {
+      throw Exception("Invalid email format");
+    }
+
+    if (password.isEmpty) {
+      throw Exception("Password cannot be empty");
+    }
+
+    if (password.length < 6) {
+      throw Exception("Password must be at least 6 characters");
+    }
+
     try {
-      // 1. Create Firebase Auth user
-      UserCredential userCredential =
+      final userCredential =
       await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      final User user = userCredential.user!;
-
-      // 2. Create Firestore user profile
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'name': name,
-        'email': email,
-        'age': age,
-        'gender': gender,
-        'sexuality': sexuality ?? '',
-        'profilePic': '',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      return user;
-    } catch (e) {
-      rethrow;
+      return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? "Registration failed");
     }
   }
 
@@ -47,12 +46,20 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    UserCredential userCredential =
-    await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    return userCredential.user;
+    if (email.trim().isEmpty || password.isEmpty) {
+      throw Exception("Email and password required");
+    }
+
+    try {
+      final userCredential =
+      await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? "Login failed");
+    }
   }
 
   // LOGOUT

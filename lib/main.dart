@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'services/auth_service.dart';
-import 'services/chat_service.dart';
+import 'controllers/auth_controller.dart';
+import 'services/chat_service.dart';git
 import 'services/emergency_service.dart';
 import 'services/wellness_service.dart';
 import 'ai/ai_service.dart';
@@ -132,40 +132,58 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-class AuthTestScreen extends StatelessWidget {
+class AuthTestScreen extends StatefulWidget {
   const AuthTestScreen({super.key});
+
+  @override
+  State<AuthTestScreen> createState() => _AuthTestScreenState();
+}
+
+
+class _AuthTestScreenState extends State<AuthTestScreen> {
+  final AuthController _authController = AuthController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Auth Test")),
       body: Center(
-        child: ElevatedButton(
+        child: _authController.isLoading
+            ? const CircularProgressIndicator()
+            : ElevatedButton(
           onPressed: () async {
-            try {
-              await AuthService().registerWithEmail(
-                email: "verify@mindease.com",
-                password: "password12",
-                name: "Lucky Sharma",
-                age: 21,
-                gender: "male",
-                sexuality: "straight",
-              );
+            final user = await _authController.register(
+              email: "verify@mindease.com",
+              password: "password12",
+              name: "Lucky Sharma",
+              age: 21,
+              gender: "male",
+              sexuality: "straight",
+            );
 
+            if (user != null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("REGISTER + PROFILE CREATED")),
+                const SnackBar(
+                  content: Text("REGISTER + PROFILE CREATED"),
+                ),
               );
-            } catch (e) {
+            } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("ERROR: $e")),
+                SnackBar(
+                  content: Text(
+                    _authController.errorMessage ??
+                        "Something went wrong",
+                  ),
+                ),
               );
             }
+
+            setState(() {});
           },
           child: const Text("Test Register + Profile"),
         ),
-
       ),
     );
   }
 }
+
