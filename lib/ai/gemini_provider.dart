@@ -44,6 +44,6 @@ class GeminiProvider implements AIProvider {
       }
     }
 
-    return "I’m here with you. It seems I’m having trouble responding right now, but I’m listening.";
+    return "Breathe slowly… I promise I’m still here, even if your thoughts are loud.";
   }
 }

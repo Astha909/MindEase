@@ -18,7 +18,8 @@ class ChatService {
     final doc = await _firestore.collection('chats').add({
       'userId': userId,
       'lastMessage': '',
-      'updatedAt': FieldValue.serverTimestamp(),
+      'timestamp': FieldValue.serverTimestamp(),
+
     });
 
     return doc.id;
@@ -38,12 +39,13 @@ class ChatService {
     await messageRef.add({
       'sender': sender, // user | ai
       'text': text,
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': DateTime.now(),
+
     });
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': text,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': DateTime.now(),
     });
   }
 

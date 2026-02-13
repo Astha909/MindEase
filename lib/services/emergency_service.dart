@@ -36,7 +36,7 @@ class EmergencyService {
   }
 
   // 🔥 CHECK emergency keywords
-  bool isEmergencyMessage(String message) {
+  List<String> getEmergencyKeywords(String message) {
     final keywords = [
       'suicide',
       'kill myself',
@@ -51,14 +51,17 @@ class EmergencyService {
     ];
 
     final lowerMessage = message.toLowerCase();
+    final found = <String>[];
 
     for (final word in keywords) {
       if (lowerMessage.contains(word)) {
-        return true;
+        found.add(word);
       }
     }
-    return false;
+
+    return found;
   }
+
 
   // 🔥 SAVE emergency log
   Future<void> saveEmergencyLog({

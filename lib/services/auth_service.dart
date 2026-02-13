@@ -1,4 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 
 bool _isValidEmail(String email) {
   final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
@@ -59,6 +62,46 @@ class AuthService {
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Login failed");
+    }
+  }
+// GOOGLE SIGN-IN
+  Future<User?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser =
+      await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        return null; // user cancelled
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final OAuthCredential credential =
+      GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential =
+      await _auth.signInWithCredential(credential);
+
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+          'email': user.email,
+          'name': user.displayName ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      return user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? "Google Sign-In failed");
     }
   }
 

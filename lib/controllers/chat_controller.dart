@@ -3,6 +3,7 @@ import 'package:mindease/services/emergency_service.dart';
 import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/ai/mock_ai_provider.dart';
 
+
 class ChatController {
   final ChatService _chatService;
   final EmergencyService _emergencyService;
@@ -16,6 +17,7 @@ class ChatController {
   })  : _chatService = chatService ?? ChatService(),
         _emergencyService = emergencyService ?? EmergencyService(),
         _aiService = aiService ?? AIService(MockAIProvider());
+
 
   Future<void> handleMessage({
     required String userId,
@@ -34,14 +36,18 @@ class ChatController {
     );
 
     // 3️⃣ Check emergency
-    if (_emergencyService.isEmergencyMessage(message)) {
+    final detectedKeywords =
+    _emergencyService.getEmergencyKeywords(message);
+
+    if (detectedKeywords.isNotEmpty) {
       await _emergencyService.saveEmergencyLog(
         userId: userId,
         triggerType: "keyword",
         detectedText: message,
-        keywordsFound: [],
+        keywordsFound: detectedKeywords,
       );
     }
+
 
     // 4️⃣ Get AI reply
     final aiReply = await _aiService.getReply(message);
