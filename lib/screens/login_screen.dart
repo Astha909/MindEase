@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,23 +63,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
-                    final user = await _authController.login(
-                      email: _emailController.text.trim(),
-                      password: _passwordController.text.trim(),
-                    );
-
-                    if (user != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Login Successful"),
-                        ),
+                    try {
+                      final user = await _authController.login(
+                        email: _emailController.text.trim(),
+                        password: _passwordController.text.trim(),
                       );
-                    } else {
+
+                      if (user != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Login Successful"),
+                          ),
+                        );
+
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => HomeScreen(),
+                          ),
+                        );
+                      }
+                    } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            _authController.errorMessage ?? "Login Failed",
-                          ),
+                          content: Text(e.toString()),
                         ),
                       );
                     }
