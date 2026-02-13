@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'controllers/chat_controller.dart';
 import 'firebase_options.dart';
 import 'controllers/auth_controller.dart';
 import 'services/chat_service.dart';
@@ -19,6 +20,21 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  final chatController = ChatController(
+    chatService: ChatService(),
+    emergencyService: EmergencyService(),
+    aiService: AIService(MockAIProvider()),
+  );
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user != null) {
+    await chatController.handleMessage(
+      userId: user.uid,
+      message: "I feel very anxious today",
+    );
+  }
+
   runApp(const MyApp());
 }
 
