@@ -3,7 +3,6 @@ import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/services/wellness_service.dart';
-
 import '../ai/cohere_provider.dart';
 
 
