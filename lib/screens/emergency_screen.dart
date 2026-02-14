@@ -189,12 +189,51 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                                     Text("Relation: ${data['relation']}"),
                                   ],
                                 ),
+
+                                /// DELETE BUTTON WITH CONFIRMATION
                                 IconButton(
                                   icon: const Icon(Icons.delete,
                                       color: Colors.red),
                                   onPressed: () async {
-                                    await _service
-                                        .deleteEmergencyContact(doc.id);
+                                    final shouldDelete = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: const Text("Delete Contact"),
+                                          content: const Text(
+                                              "Do you want to delete this contact?"),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(false),
+                                              child: const Text("Cancel"),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(true),
+                                              child: const Text(
+                                                "Delete",
+                                                style: TextStyle(
+                                                    color: Colors.red),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+
+                                    if (shouldDelete != null && shouldDelete) {
+                                      await _service
+                                          .deleteEmergencyContact(doc.id);
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text("Contact Deleted")),
+                                      );
+                                    }
                                   },
                                 ),
                               ],
