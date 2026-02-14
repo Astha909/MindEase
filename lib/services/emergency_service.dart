@@ -1,4 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+
+// 🔐 TEMP: Enable real SMS only on your device
+const bool useRealSMS = false;
 
 class EmergencyService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -78,4 +84,121 @@ class EmergencyService {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
+  // 🚨 TRIGGER EMERGENCY FLOW
+  // 🚨 TRIGGER EMERGENCY FLOW
+  Future<void> triggerEmergency({
+    required String userId,
+    required String message,
+    required List<String> keywordsFound,
+  }) async {
+    // 1️⃣ Check last emergency log for cooldown
+    final recentLogs = await _firestore
+        .collection('emergency_logs')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get();
+
+    if (recentLogs.docs.isNotEmpty) {
+      final lastLog = recentLogs.docs.first.data();
+      final lastTimestamp = lastLog['createdAt'] as Timestamp?;
+
+      if (lastTimestamp != null) {
+        final lastTime = lastTimestamp.toDate();
+        final now = DateTime.now();
+
+        final difference = now.difference(lastTime);
+
+        if (difference.inMinutes < 10) {
+          print("⏳ Emergency cooldown active. No SMS sent.");
+
+          // Still log event
+          await saveEmergencyLog(
+            userId: userId,
+            triggerType: "cooldown_blocked",
+            detectedText: message,
+            keywordsFound: keywordsFound,
+          );
+
+          return;
+        }
+      }
+    }
+
+    // 2️⃣ Fetch emergency contacts
+    final snapshot = await _firestore
+        .collection('emergency_contacts')
+        .where('userId', isEqualTo: userId)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      print("No emergency contacts found.");
+      return;
+    }
+
+    // 3️⃣ Send SMS to each contact
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final phone = data['phone'];
+
+      await _sendMockSMS(
+        phone: phone,
+        userMessage: message,
+      );
+    }
+
+    // 4️⃣ Save emergency log
+    await saveEmergencyLog(
+      userId: userId,
+      triggerType: "keyword_detection",
+      detectedText: message,
+      keywordsFound: keywordsFound,
+    );
+
+    print("🚨 Emergency flow completed.");
+  }
+
+
+  // 📩 MOCK SMS FUNCTION (Twilio will replace this later)
+  Future<void> _sendMockSMS({
+    required String phone,
+    required String userMessage,
+  }) async {
+    if (!useRealSMS) {
+      print("🔹 MOCK SMS to $phone");
+      print("Message: $userMessage");
+      await Future.delayed(const Duration(milliseconds: 500));
+      return;
+    }
+
+    try {
+      // ⚠️ DEV ONLY: Add your Twilio credentials locally
+      const String accountSid = "";
+      const String authToken = "";
+      const String twilioPhone = "";
+
+      final url = Uri.parse(
+          "https://api.twilio.com/2010-04-01/Accounts/$accountSid/Messages.json");
+
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization":
+          "Basic ${base64Encode(utf8.encode('$accountSid:$authToken'))}",
+        },
+        body: {
+          "From": twilioPhone,
+          "To": phone,
+          "Body":
+          "🚨 Emergency Alert: User may be in crisis.\nMessage: $userMessage",
+        },
+      );
+
+      print("Twilio response: ${response.statusCode}");
+    } catch (e) {
+      print("SMS error: $e");
+    }
+  }
+
+
 }
