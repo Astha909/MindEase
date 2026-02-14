@@ -17,6 +17,36 @@ class EmergencyController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 🔍 Check for emergency keywords
+  List<String> checkEmergencyKeywords(String message) {
+    return _emergencyService.getEmergencyKeywords(message);
+  }
+
+  /// 🚨 Trigger full emergency flow
+  Future<void> triggerEmergency({
+    required String userId,
+    required String message,
+    required List<String> keywordsFound,
+  }) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      await _emergencyService.triggerEmergency(
+        userId: userId,
+        message: message,
+        keywordsFound: keywordsFound,
+      );
+    }catch (e) {
+      print("EMERGENCY ERROR: $e");
+      _setError("Emergency process failed");
+    }
+    finally {
+      _setLoading(false);
+    }
+  }
+
+  /// ➕ Add contact
   Future<void> addContact({
     required String userId,
     required String name,
