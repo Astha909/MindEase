@@ -1,168 +1,266 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../controllers/emergency_controller.dart';
+import '../services/emergency_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
-  final EmergencyController emergencyController;
-
-  const EmergencyScreen({super.key, required this.emergencyController});
+  const EmergencyScreen({super.key});
 
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
+  final EmergencyController _controller = EmergencyController();
+  final EmergencyService _service = EmergencyService();
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _relationController = TextEditingController();
-  final TextEditingController _messageController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _relationController.dispose();
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addContact() async {
-    final userId = "user-id-placeholder"; // Replace with actual user ID
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
-    final relation = _relationController.text.trim();
-
-    if (name.isEmpty || phone.isEmpty || relation.isEmpty) return;
-
-    await widget.emergencyController.addContact(
-      userId: userId,
-      name: name,
-      phone: phone,
-      relation: relation,
-    );
-
-    if (widget.emergencyController.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.emergencyController.errorMessage!)),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Contact added successfully")),
-      );
-      _nameController.clear();
-      _phoneController.clear();
-      _relationController.clear();
-    }
-  }
-
-  Future<void> _triggerEmergency() async {
-    final userId = "user-id-placeholder"; // Replace with actual user ID
-    final message = _messageController.text.trim();
-
-    if (message.isEmpty) return;
-
-    final keywordsFound =
-        widget.emergencyController.checkEmergencyKeywords(message);
-
-    if (keywordsFound.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No emergency keywords found")),
-      );
-      return;
-    }
-
-    await widget.emergencyController.triggerEmergency(
-      userId: userId,
-      message: message,
-      keywordsFound: keywordsFound,
-    );
-
-    if (widget.emergencyController.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.emergencyController.errorMessage!)),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Emergency triggered successfully")),
-      );
-      _messageController.clear();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = widget.emergencyController.isLoading;
+    final userId = FirebaseAuth.instance.currentUser!.uid;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("Emergency")),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Add Emergency Contact",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: "Name"),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _phoneController,
-                decoration: const InputDecoration(labelText: "Phone"),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _relationController,
-                decoration: const InputDecoration(labelText: "Relation"),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: isLoading ? null : _addContact,
-                child: isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ))
-                    : const Text("Add Contact"),
-              ),
-              const Divider(height: 32, thickness: 1),
-              const Text("Trigger Emergency",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  labelText: "Message",
-                  hintText: "Describe your emergency",
-                  border: OutlineInputBorder(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFFFFE5EC),
+                    Color(0xFFE0C3FC),
+                    Color(0xFFD6E4FF),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                maxLines: 3,
               ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: isLoading ? null : _triggerEmergency,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ))
-                    : const Text("Trigger Emergency"),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+
+                  const Text(
+                    "Emergency Contacts 🚨",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// NAME
+                  TextField(
+                    controller: _nameController,
+                    decoration: _inputDecoration("Name"),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// PHONE
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: _inputDecoration("Phone"),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// RELATION
+                  TextField(
+                    controller: _relationController,
+                    decoration: _inputDecoration("Relation"),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// ADD BUTTON
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, _) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _controller.isLoading
+                              ? null
+                              : () async {
+                                  if (_nameController.text.isEmpty ||
+                                      _phoneController.text.isEmpty ||
+                                      _relationController.text.isEmpty) {
+                                    return;
+                                  }
+
+                                  await _controller.addContact(
+                                    userId: userId,
+                                    name: _nameController.text,
+                                    phone: _phoneController.text,
+                                    relation: _relationController.text,
+                                  );
+
+                                  _nameController.clear();
+                                  _phoneController.clear();
+                                  _relationController.clear();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text("Contact Added Successfully"),
+                                    ),
+                                  );
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: _controller.isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : const Text("Add Contact"),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  const Text(
+                    "Saved Contacts",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// CONTACT LIST
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _service.getEmergencyContacts(userId),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final docs = snapshot.data!.docs;
+
+                      if (docs.isEmpty) {
+                        return const Text(
+                          "No contacts added yet.",
+                        );
+                      }
+
+                      return Column(
+                        children: docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.95),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      data['name'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text("📞 ${data['phone']}"),
+                                    Text("Relation: ${data['relation']}"),
+                                  ],
+                                ),
+
+                                /// DELETE BUTTON WITH CONFIRMATION
+                                IconButton(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  onPressed: () async {
+                                    final shouldDelete = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: const Text("Delete Contact"),
+                                          content: const Text(
+                                              "Do you want to delete this contact?"),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(false),
+                                              child: const Text("Cancel"),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(true),
+                                              child: const Text(
+                                                "Delete",
+                                                style: TextStyle(
+                                                    color: Colors.red),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+
+                                    if (shouldDelete != null && shouldDelete) {
+                                      await _service
+                                          .deleteEmergencyContact(doc.id);
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text("Contact Deleted")),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 60),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        );
+      },
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.95),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
       ),
     );
   }

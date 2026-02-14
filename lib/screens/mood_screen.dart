@@ -187,9 +187,9 @@ class _MoodScreenState extends State<MoodScreen>
                         offset: const Offset(0, 5))
                   ],
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Wellness",
                       style:
@@ -219,9 +219,9 @@ class _MoodScreenState extends State<MoodScreen>
                         offset: const Offset(0, 5))
                   ],
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       "Motivation",
                       style:
@@ -261,7 +261,7 @@ class CircularMoodPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     Paint foreground = Paint()
-      ..shader = SweepGradient(
+      ..shader = const SweepGradient(
         startAngle: -pi / 2,
         endAngle: 3 * pi / 2,
         colors: [Colors.green, Colors.yellow, Colors.orange, Colors.red],
