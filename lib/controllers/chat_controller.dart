@@ -2,8 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
-import 'package:mindease/ai/mock_ai_provider.dart';
 import 'package:mindease/services/wellness_service.dart';
+
+import '../ai/cohere_provider.dart';
 
 
 class ChatController {
@@ -25,7 +26,7 @@ class ChatController {
         _emergencyController =
             emergencyController ?? EmergencyController(),
 
-        _aiService = aiService ?? AIService(MockAIProvider()),
+        _aiService = aiService ?? AIService(CohereProvider()),
         _wellnessService = wellnessService ?? WellnessService();
 
 
