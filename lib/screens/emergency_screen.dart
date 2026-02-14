@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../controllers/emergency_controller.dart';
-import '../services/emergency_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
-  const EmergencyScreen({super.key});
+  final EmergencyController emergencyController;
+
+  const EmergencyScreen({
+    super.key,
+    required this.emergencyController,
+  });
 
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
-  final EmergencyController _controller = EmergencyController();
-  final EmergencyService _service = EmergencyService();
-
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _relationController = TextEditingController();
@@ -48,7 +49,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 10),
-
                   const Text(
                     "Emergency Contacts 🚨",
                     style: TextStyle(
@@ -56,7 +56,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 20),
 
                   /// NAME
@@ -86,12 +85,12 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
                   /// ADD BUTTON
                   AnimatedBuilder(
-                    animation: _controller,
+                    animation: widget.emergencyController,
                     builder: (context, _) {
                       return SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _controller.isLoading
+                          onPressed: widget.emergencyController.isLoading
                               ? null
                               : () async {
                                   if (_nameController.text.isEmpty ||
@@ -100,7 +99,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                                     return;
                                   }
 
-                                  await _controller.addContact(
+                                  await widget.emergencyController.addContact(
                                     userId: userId,
                                     name: _nameController.text,
                                     phone: _phoneController.text,
@@ -125,7 +124,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                               borderRadius: BorderRadius.circular(25),
                             ),
                           ),
-                          child: _controller.isLoading
+                          child: widget.emergencyController.isLoading
                               ? const CircularProgressIndicator(
                                   color: Colors.white)
                               : const Text("Add Contact"),
@@ -148,7 +147,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
                   /// CONTACT LIST
                   StreamBuilder<QuerySnapshot>(
-                    stream: _service.getEmergencyContacts(userId),
+                    stream:
+                        widget.emergencyController.getEmergencyContacts(userId),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
                         return const Center(child: CircularProgressIndicator());
@@ -157,9 +157,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                       final docs = snapshot.data!.docs;
 
                       if (docs.isEmpty) {
-                        return const Text(
-                          "No contacts added yet.",
-                        );
+                        return const Text("No contacts added yet.");
                       }
 
                       return Column(
@@ -190,7 +188,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                                   ],
                                 ),
 
-                                /// DELETE BUTTON WITH CONFIRMATION
+                                /// DELETE WITH CONFIRM
                                 IconButton(
                                   icon: const Icon(Icons.delete,
                                       color: Colors.red),
@@ -205,14 +203,12 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                                           actions: [
                                             TextButton(
                                               onPressed: () =>
-                                                  Navigator.of(context)
-                                                      .pop(false),
+                                                  Navigator.pop(context, false),
                                               child: const Text("Cancel"),
                                             ),
                                             TextButton(
                                               onPressed: () =>
-                                                  Navigator.of(context)
-                                                      .pop(true),
+                                                  Navigator.pop(context, true),
                                               child: const Text(
                                                 "Delete",
                                                 style: TextStyle(
@@ -224,9 +220,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                                       },
                                     );
 
-                                    if (shouldDelete != null && shouldDelete) {
-                                      await _service
-                                          .deleteEmergencyContact(doc.id);
+                                    if (shouldDelete == true) {
+                                      await widget.emergencyController
+                                          .deleteContact(doc.id);
 
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
