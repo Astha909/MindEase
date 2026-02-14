@@ -5,7 +5,7 @@ import 'ai_provider.dart';
 import '../config/api_keys.dart';
 
 class CohereProvider implements AIProvider {
-  static const String _endpoint = "https://api.cohere.ai/v1/chat";
+  static const String _endpoint = "https://api.cohere.ai/v2/chat";
 
   @override
   Future<String> getReply(String message) async {
@@ -16,15 +16,20 @@ class CohereProvider implements AIProvider {
         "Content-Type": "application/json",
       },
       body: jsonEncode({
-        "model": "command-r",
-        "message": message,
-        "preamble":
-        "You are a supportive mental health companion. "
-            "Be empathetic, calm, and non-judgmental. "
-            "Do not diagnose or label conditions. "
-            "If the user expresses self-harm or suicide intent, "
-            "encourage them to contact emergency services or a trusted person.",
-        "temperature": 0.6,
+        "model": "command-a-03-2025",
+        "messages": [
+          {
+            "role": "system",
+            "content":
+            "You are a supportive mental health companion. "
+                "Be empathetic, calm, and non-judgmental."
+          },
+          {
+            "role": "user",
+            "content": message
+          }
+        ],
+        "temperature": 0.6
       }),
 
     );
