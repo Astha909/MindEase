@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/wellness_service.dart';
 
@@ -16,11 +17,33 @@ class WellnessController extends ChangeNotifier {
     errorMessage = message;
     notifyListeners();
   }
+  Stream<QuerySnapshot> getMoodLogs(String userId) {
+    return _wellnessService.getMoodLogs(userId);
+  }
+
+  Stream<QuerySnapshot> getWellnessTips() {
+    return _wellnessService.getWellnessTips();
+  }
+
+  Future<String?> getLatestMood(String userId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('mood_logs')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+
+    return snapshot.docs.first.data()['mood'];
+  }
+
 
   Future<void> addMood({
     required String userId,
     required String mood,
     String? note,
+    bool isManual = true,
   }) async {
     _setLoading(true);
     _setError(null);
