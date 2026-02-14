@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../controllers/home_controller.dart';
 import 'chat_screen.dart';
 import 'mood_screen.dart';
+import 'emergency_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key}); // ⚠️ const MUST be here
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -16,19 +17,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 👇 Light background (NOT transparent)
       backgroundColor: const Color(0xFFF5F7FF),
-
       appBar: AppBar(
         backgroundColor: const Color(0xFFF5F7FF),
         elevation: 0,
         centerTitle: true,
         title: const Text(
           "MindEase",
-          style: TextStyle(color: Colors.black),
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
-
       body: AnimatedBuilder(
         animation: _homeController,
         builder: (context, _) {
@@ -42,19 +44,13 @@ class _HomeScreenState extends State<HomeScreen> {
               return const MoodScreen();
 
             case 2:
-              return const Center(
-                child: Text(
-                  "Emergency Screen UI Here",
-                  style: TextStyle(fontSize: 18),
-                ),
-              );
+              return const EmergencyScreen();
 
             default:
               return const SizedBox();
           }
         },
       ),
-
       bottomNavigationBar: AnimatedBuilder(
         animation: _homeController,
         builder: (context, _) {
@@ -65,6 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             selectedItemColor: Colors.purple,
             unselectedItemColor: Colors.grey,
+            backgroundColor: Colors.white,
+            type: BottomNavigationBarType.fixed,
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.chat_bubble_outline),

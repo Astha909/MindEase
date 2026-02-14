@@ -41,24 +41,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-
-              // EMAIL
               TextField(
                 controller: _emailController,
                 decoration: _inputDecoration('Email'),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-
-              // PASSWORD
               TextField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: _inputDecoration('Password'),
               ),
               const SizedBox(height: 24),
-
-              // LOGIN BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -70,46 +64,33 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
 
                       if (user != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Login Successful"),
-                          ),
-                        );
-
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => HomeScreen(),
+                            builder: (context) => const HomeScreen(),
                           ),
                         );
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(e.toString()),
-                        ),
+                        SnackBar(content: Text(e.toString())),
                       );
                     }
 
                     setState(() {});
                   },
                   child: _authController.isLoading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Login'),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // GO TO REGISTER
               GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const RegisterScreen(),
+                      builder: (context) => const RegisterScreen(),
                     ),
                   );
                 },
