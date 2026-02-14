@@ -35,6 +35,9 @@ class ChatController extends ChangeNotifier {
     errorMessage = message;
     notifyListeners();
   }
+  Future<String> getOrCreateChat(String userId) {
+    return _chatService.getOrCreateChat(userId);
+  }
 
   Stream<QuerySnapshot> listenToMessages(String chatId) {
     return _chatService.listenToMessages(chatId);
