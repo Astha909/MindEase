@@ -1,27 +1,66 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/ai/mock_ai_provider.dart';
+import 'package:mindease/services/wellness_service.dart';
+
 
 class ChatController {
   final ChatService _chatService;
   final EmergencyController _emergencyController;
   final AIService _aiService;
+  final WellnessService _wellnessService;
+
 
   ChatController({
     ChatService? chatService,
     EmergencyController? emergencyController,
     AIService? aiService,
-  })  : _chatService = chatService ?? ChatService(),
+    WellnessService? wellnessService,
+
+
+  })
+      : _chatService = chatService ?? ChatService(),
         _emergencyController =
             emergencyController ?? EmergencyController(),
-        _aiService = aiService ?? AIService(MockAIProvider());
+
+        _aiService = aiService ?? AIService(MockAIProvider()),
+        _wellnessService = wellnessService ?? WellnessService();
+
+
+  Stream<QuerySnapshot> listenToMessages(String chatId) {
+    return _chatService.listenToMessages(chatId);
+  }
+  String? detectMood(String message) {
+    final text = message.toLowerCase();
+
+    if (text.contains("anxious") || text.contains("nervous")) {
+      return "anxiety";
+    }
+
+    if (text.contains("sad") || text.contains("low") || text.contains("depressed")) {
+      return "self-care";
+    }
+
+    if (text.contains("stressed") || text.contains("overwhelmed")) {
+      return "stress";
+    }
+
+    return null;
+  }
+
+
 
   Future<void> handleMessage({
     required String userId,
     required String message,
   }) async {
-    if (message.trim().isEmpty) return;
+    if (message
+        .trim()
+        .isEmpty) {
+      return;
+    }
 
     final chatId = await _chatService.getOrCreateChat(userId);
 
@@ -31,6 +70,7 @@ class ChatController {
       sender: "user",
       text: message,
     );
+
 
     // 🔍 Check emergency via controller
     final detectedKeywords =
@@ -55,9 +95,32 @@ class ChatController {
 
       return;
     }
+    // 🔍 Detect mood from message
+    final detectedCategory = detectMood(message);
 
-    // Normal AI flow
-    final aiReply = await _aiService.getReply(message);
+    if (detectedCategory != null) {
+      await _wellnessService.addMoodLog(
+        userId: userId,
+        mood: detectedCategory,
+      );
+    }
+
+// Normal AI flow
+    String aiReply = await _aiService.getReply(message);
+
+// Fetch one matching tip
+    if (detectedCategory != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('wellness_tips')
+          .where('category', isEqualTo: detectedCategory)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final tip = snapshot.docs.first.data()['content'];
+        aiReply += "\n\n💡 Small suggestion: $tip";
+      }
+    }
 
     await _chatService.sendMessage(
       chatId: chatId,

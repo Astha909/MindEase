@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/emergency_service.dart';
 
@@ -15,6 +16,9 @@ class EmergencyController extends ChangeNotifier {
   void _setError(String? message) {
     errorMessage = message;
     notifyListeners();
+  }
+  Stream<QuerySnapshot> getEmergencyContacts(String userId) {
+    return _emergencyService.getEmergencyContacts(userId);
   }
 
   /// 🔍 Check for emergency keywords
@@ -69,4 +73,17 @@ class EmergencyController extends ChangeNotifier {
       _setLoading(false);
     }
   }
+  Future<void> deleteContact(String contactId) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      await _emergencyService.deleteEmergencyContact(contactId);
+    } catch (e) {
+      _setError("Failed to delete contact");
+    } finally {
+      _setLoading(false);
+    }
+  }
+
 }
