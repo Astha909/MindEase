@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../controllers/home_controller.dart';
+import '../controllers/emergency_controller.dart';
 import 'chat_screen.dart';
 import 'mood_screen.dart';
 import 'emergency_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key}); // ⚠️ const MUST be here
+  const HomeScreen({super.key}); // ✅ Keep const
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -13,6 +14,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final HomeController _homeController = HomeController();
+
+  // ✅ EmergencyController instance WITHOUT importing or passing service
+  late final EmergencyController _emergencyController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emergencyController = EmergencyController(); // uses default constructor
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,13 +49,12 @@ class _HomeScreenState extends State<HomeScreen> {
               return ChatScreen(
                 chatController: _homeController.chatController,
               );
-
             case 1:
               return const MoodScreen();
-
             case 2:
-              return const EmergencyScreen();
-
+              return EmergencyScreen(
+                emergencyController: _emergencyController,
+              );
             default:
               return const SizedBox();
           }

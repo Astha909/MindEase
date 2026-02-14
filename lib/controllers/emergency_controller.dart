@@ -37,11 +37,10 @@ class EmergencyController extends ChangeNotifier {
         message: message,
         keywordsFound: keywordsFound,
       );
-    }catch (e) {
+    } catch (e) {
       print("EMERGENCY ERROR: $e");
       _setError("Emergency process failed");
-    }
-    finally {
+    } finally {
       _setLoading(false);
     }
   }
