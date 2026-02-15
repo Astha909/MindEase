@@ -76,4 +76,52 @@ class UserProfileService {
 
     return doc.data()!;
   }
+  /// UPDATE PROFILE
+  Future<void> updateUserProfile({
+    required String name,
+    required int age,
+    required String gender,
+    String? sexuality,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception("User not logged in");
+    }
+
+    if (name.trim().isEmpty) {
+      throw Exception("Name cannot be empty");
+    }
+
+    if (age <= 0) {
+      throw Exception("Invalid age");
+    }
+
+    if (gender.trim().isEmpty) {
+      throw Exception("Gender required");
+    }
+
+    await _firestore.collection('users').doc(user.uid).update({
+      'name': name,
+      'age': age,
+      'gender': gender,
+      'sexuality': sexuality ?? '',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+  /// DELETE PROFILE
+  Future<void> deleteUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception("User not logged in");
+    }
+
+    // Delete Firestore profile
+    await _firestore.collection('users').doc(user.uid).delete();
+
+    // Delete Firebase Auth account
+    await user.delete();
+  }
+
 }

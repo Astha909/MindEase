@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -90,6 +92,7 @@ class EmergencyService {
     required String userId,
     required String message,
     required List<String> keywordsFound,
+    String triggerType = "keyword_detection",
   }) async {
     // 1️⃣ Check last emergency log for cooldown
     final recentLogs = await _firestore
@@ -115,7 +118,7 @@ class EmergencyService {
           // Still log event
           await saveEmergencyLog(
             userId: userId,
-            triggerType: "cooldown_blocked",
+            triggerType: triggerType,
             detectedText: message,
             keywordsFound: keywordsFound,
           );

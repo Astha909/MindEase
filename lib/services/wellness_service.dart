@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
 class WellnessService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Future<void> seedSampleTips() async {
@@ -160,11 +161,13 @@ class WellnessService {
     required String userId,
     required String mood,
     String? note,
+    List<dynamic>? tips,
   }) async {
     await _firestore.collection('mood_logs').add({
       'userId': userId,
-      'mood': mood, // happy, sad, anxious, overwhelmed, frustrated...
+      'mood': mood,
       'note': note ?? '',
+      'tips': tips ?? [],
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

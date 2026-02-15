@@ -17,12 +17,14 @@ class EmergencyController extends ChangeNotifier {
     errorMessage = message;
     notifyListeners();
   }
+
   Stream<QuerySnapshot> getEmergencyContacts(String userId) {
     return _emergencyService.getEmergencyContacts(userId);
   }
 
   /// 🔍 Check for emergency keywords
   List<String> checkEmergencyKeywords(String message) {
+    if (message.trim().isEmpty) return [];
     return _emergencyService.getEmergencyKeywords(message);
   }
 
@@ -31,7 +33,13 @@ class EmergencyController extends ChangeNotifier {
     required String userId,
     required String message,
     required List<String> keywordsFound,
+    String triggerType = "keyword_detection",
   }) async {
+    if (message.trim().isEmpty || keywordsFound.isEmpty) {
+      _setError("Invalid emergency trigger");
+      return;
+    }
+
     _setLoading(true);
     _setError(null);
 
@@ -40,9 +48,9 @@ class EmergencyController extends ChangeNotifier {
         userId: userId,
         message: message,
         keywordsFound: keywordsFound,
+        triggerType: triggerType,
       );
     } catch (e) {
-      print("EMERGENCY ERROR: $e");
       _setError("Emergency process failed");
     } finally {
       _setLoading(false);
@@ -56,6 +64,13 @@ class EmergencyController extends ChangeNotifier {
     required String phone,
     required String relation,
   }) async {
+    if (name.trim().isEmpty ||
+        phone.trim().isEmpty ||
+        relation.trim().isEmpty) {
+      _setError("All fields are required");
+      return;
+    }
+
     _setLoading(true);
     _setError(null);
 
@@ -72,7 +87,13 @@ class EmergencyController extends ChangeNotifier {
       _setLoading(false);
     }
   }
+
   Future<void> deleteContact(String contactId) async {
+    if (contactId.trim().isEmpty) {
+      _setError("Invalid contact");
+      return;
+    }
+
     _setLoading(true);
     _setError(null);
 
@@ -84,5 +105,4 @@ class EmergencyController extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
 }

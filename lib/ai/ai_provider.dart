@@ -1,4 +1,4 @@
 //will not change in future
 abstract class AIProvider {
-  Future<String> getReply(String message);
+  Future<Map<String, dynamic>> getReply(String message);
 }

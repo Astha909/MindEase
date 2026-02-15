@@ -43,7 +43,7 @@ class ChatController extends ChangeNotifier {
     return _chatService.listenToMessages(chatId);
   }
 
-  String? detectMood(String message) {
+  /*String? detectMood(String message) {
     final text = message.toLowerCase();
 
     if (text.contains("anxious") || text.contains("nervous")) {
@@ -62,7 +62,7 @@ class ChatController extends ChangeNotifier {
     }
 
     return null;
-  }
+  } */
 
   Future<void> handleMessage({
     required String userId,
@@ -83,15 +83,25 @@ class ChatController extends ChangeNotifier {
         text: message,
       );
 
-      // 🔍 Emergency Check
-      final detectedKeywords =
-      _emergencyController.checkEmergencyKeywords(message);
 
-      if (detectedKeywords.isNotEmpty) {
+
+// 🧠 Get structured AI response from Cohere
+      final aiResult = await _aiService.getReply(message);
+
+      final mood = aiResult["mood"]?.toString() ?? "neutral";
+      final chatReply = aiResult["chat_reply"]?.toString() ?? "";
+      final tips = aiResult["tips"] as List<dynamic>? ?? [];
+      final activity = aiResult["activity"]?.toString() ?? "";
+      final crisisLevel =
+          aiResult["crisis_level"]?.toString() ?? "none";
+
+// 🚨 Severe-only escalation
+      if (crisisLevel == "severe") {
         await _emergencyController.triggerEmergency(
           userId: userId,
           message: message,
-          keywordsFound: detectedKeywords,
+          keywordsFound: ["ai_severe_detection"],
+          triggerType: "ai_severe_detection",
         );
 
         await _chatService.sendMessage(
@@ -107,37 +117,39 @@ class ChatController extends ChangeNotifier {
         return;
       }
 
-      // 🔍 Detect mood
-      final detectedCategory = detectMood(message);
 
-      if (detectedCategory != null) {
-        await _wellnessService.addMoodLog(
-          userId: userId,
-          mood: detectedCategory,
-        );
+// 💾 Save mood to Wellness system (always)
+      await _wellnessService.addMoodLog(
+        userId: userId,
+        mood: mood,
+        note: activity,
+        tips: tips,
+      );
+
+// 🔴 Option 2: Show tip only if mood is negative
+      final negativeMoods = [
+        "sad",
+        "anxious",
+        "stressed",
+        "overwhelmed",
+        "angry"
+      ];
+
+      String finalReply = chatReply;
+
+      if (negativeMoods.contains(mood) && tips.isNotEmpty) {
+        finalReply += "\n\n💡 ${tips.first}";
       }
 
-      // Normal AI flow
-      String aiReply = await _aiService.getReply(message);
-
-      if (detectedCategory != null) {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('wellness_tips')
-            .where('category', isEqualTo: detectedCategory)
-            .limit(1)
-            .get();
-
-        if (snapshot.docs.isNotEmpty) {
-          final tip = snapshot.docs.first.data()['content'];
-          aiReply += "\n\n💡 Small suggestion: $tip";
-        }
-      }
-
+// 📤 Send final AI reply to chat
       await _chatService.sendMessage(
         chatId: chatId,
         sender: "ai",
-        text: aiReply,
+        text: finalReply,
       );
+
+
+
     } catch (e) {
       _setError("Failed to process message");
     } finally {

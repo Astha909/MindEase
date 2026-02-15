@@ -1,4 +1,3 @@
-
 import 'ai_provider.dart';
 
 class AIService {
@@ -6,7 +5,7 @@ class AIService {
 
   AIService(this.provider);
 
-  Future<String> getReply(String message) {
+  Future<Map<String, dynamic>> getReply(String message) {
     return provider.getReply(message);
   }
 }

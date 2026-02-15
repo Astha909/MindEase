@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'chat_controller.dart';
+import 'profile_controller.dart';
 import 'wellness_controller.dart';
 import 'emergency_controller.dart';
 
@@ -8,6 +9,8 @@ class HomeController extends ChangeNotifier {
   final ChatController chatController = ChatController();
   final WellnessController wellnessController = WellnessController();
   final EmergencyController emergencyController = EmergencyController();
+  final ProfileController profileController = ProfileController();
+
 
   int selectedIndex = 0;
 

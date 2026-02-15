@@ -2,23 +2,43 @@ import 'ai_provider.dart';
 
 class MockAIProvider implements AIProvider {
   @override
-  Future<String> getReply(String message) async {
+  Future<Map<String, dynamic>> getReply(String message) async {
     await Future.delayed(const Duration(seconds: 1));
 
     final lower = message.toLowerCase();
 
     if (lower.contains("anxious")) {
-      return "I can sense you're feeling anxious. Let’s slow down together 🫁";
+      return {
+        "mood": "anxious",
+        "chat_reply": "I can sense you're feeling anxious. Let’s slow down together 🫁",
+        "tips": [],
+        "activity": ""
+      };
     }
 
     if (lower.contains("sad")) {
-      return "I’m really sorry you're feeling sad 💛";
+      return {
+        "mood": "sad",
+        "chat_reply": "I’m really sorry you're feeling sad 💛",
+        "tips": [],
+        "activity": ""
+      };
     }
 
     if (lower.contains("overwhelmed")) {
-      return "That sounds overwhelming. Let’s break it into small steps 🧩";
+      return {
+        "mood": "overwhelmed",
+        "chat_reply": "That sounds overwhelming. Let’s break it into small steps 🧩",
+        "tips": [],
+        "activity": ""
+      };
     }
 
-    return "I’m here with you. Tell me more.";
+    return {
+      "mood": "neutral",
+      "chat_reply": "I’m here with you. Tell me more.",
+      "tips": [],
+      "activity": ""
+    };
   }
 }
