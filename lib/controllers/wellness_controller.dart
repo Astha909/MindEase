@@ -42,19 +42,16 @@ class WellnessController extends ChangeNotifier {
     _setError(null);
 
     try {
-      final aiResult =
-      await _aiService.getReply("User feels: $moodInput");
+      final aiResult = await _aiService.getReply("User feels: $moodInput");
 
       // SAFETY: ensure proper type handling
       String mood = moodInput;
       List<dynamic> tips = [];
       String activity = "";
 
-      if (aiResult is Map) {
-        mood = aiResult["mood"]?.toString() ?? moodInput;
-        tips = aiResult["tips"] is List ? aiResult["tips"] : [];
-        activity = aiResult["activity"]?.toString() ?? "";
-      }
+      mood = aiResult["mood"]?.toString() ?? moodInput;
+      tips = aiResult["tips"] is List ? aiResult["tips"] : [];
+      activity = aiResult["activity"]?.toString() ?? "";
 
       final snapshot = await FirebaseFirestore.instance
           .collection('mood_logs')

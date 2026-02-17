@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../controllers/wellness_controller.dart';
 import 'dart:math';
 
 class MoodScreen extends StatefulWidget {
-  const MoodScreen({super.key});
+  final String userId;
+
+  const MoodScreen({super.key, required this.userId});
 
   @override
   State<MoodScreen> createState() => _MoodScreenState();
@@ -13,10 +14,12 @@ class MoodScreen extends StatefulWidget {
 class _MoodScreenState extends State<MoodScreen>
     with SingleTickerProviderStateMixin {
   final WellnessController _controller = WellnessController();
-  final TextEditingController _noteController = TextEditingController();
 
-  double _moodValue = 5; // 0-10 scale
+  double _moodValue = 5;
   late AnimationController _animationController;
+
+  List<dynamic> _tips = [];
+  bool _isSaving = false;
 
   final List<String> moodLabels = [
     "Angry",
@@ -47,16 +50,21 @@ class _MoodScreenState extends State<MoodScreen>
     super.initState();
     _animationController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500));
+
+    _listenToLatestMood();
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _noteController.dispose();
-    super.dispose();
+  void _listenToLatestMood() {
+    _controller.getMoodLogs(widget.userId).listen((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data() as Map<String, dynamic>;
+        setState(() {
+          _tips = data["tips"] ?? [];
+        });
+      }
+    });
   }
 
-  // Map mood 0-10 to index 0-4 for emojis/colors
   int _getMoodIndex(double value) {
     if (value <= 2) return 0;
     if (value <= 4) return 1;
@@ -65,9 +73,21 @@ class _MoodScreenState extends State<MoodScreen>
     return 4;
   }
 
+  Future<void> _saveMood() async {
+    final index = _getMoodIndex(_moodValue);
+
+    setState(() => _isSaving = true);
+
+    await _controller.analyzeManualMood(
+      userId: widget.userId,
+      moodInput: moodLabels[index],
+    );
+
+    setState(() => _isSaving = false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
     final index = _getMoodIndex(_moodValue);
 
     return Scaffold(
@@ -99,20 +119,18 @@ class _MoodScreenState extends State<MoodScreen>
                       Colors.purple.shade50,
                       Colors.blue.shade50,
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5))
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    )
                   ],
                 ),
                 child: Column(
                   children: [
-                    /// Emoji
                     Text(
                       moodEmojis[index],
                       style: const TextStyle(fontSize: 70),
@@ -167,14 +185,18 @@ class _MoodScreenState extends State<MoodScreen>
                             _animationController.forward(from: 0);
                           });
                         },
+                        onChangeEnd: (value) {
+                          _saveMood();
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 30),
 
-              /// Wellness Section (empty content)
+              /// WELLNESS SECTION (Backend Tips)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -182,56 +204,35 @@ class _MoodScreenState extends State<MoodScreen>
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5))
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    )
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "Wellness",
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 15),
-                    Text(
-                      "Content updating",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              /// Motivation Section (empty content)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 158, 212, 228),
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5))
-                  ],
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Motivation",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 15),
-                    Text(
-                      "Updating ",
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    const SizedBox(height: 15),
+                    _tips.isEmpty
+                        ? const Text(
+                            "Content updating",
+                            style: TextStyle(color: Colors.grey),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: _tips
+                                .map((tip) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Text("• $tip"),
+                                    ))
+                                .toList(),
+                          ),
                   ],
                 ),
               ),
@@ -273,8 +274,13 @@ class CircularMoodPainter extends CustomPainter {
     canvas.drawCircle(center, radius, background);
 
     double angle = 2 * pi * (value / 10);
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), -pi / 2,
-        angle, false, foreground);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -pi / 2,
+      angle,
+      false,
+      foreground,
+    );
   }
 
   @override

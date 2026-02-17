@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../controllers/emergency_controller.dart';
 
 class EmergencyScreen extends StatefulWidget {
+  final String userId;
   final EmergencyController emergencyController;
 
   const EmergencyScreen({
     super.key,
+    required this.userId,
     required this.emergencyController,
   });
 
@@ -22,241 +22,181 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Emergency Contacts 🚨"),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: _inputDecoration("Name"),
             ),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFFFE5EC),
-                    Color(0xFFE0C3FC),
-                    Color(0xFFD6E4FF),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            const SizedBox(height: 10),
+            TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: _inputDecoration("Phone"),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _relationController,
+              decoration: _inputDecoration("Relation"),
+            ),
+            const SizedBox(height: 20),
+            AnimatedBuilder(
+              animation: widget.emergencyController,
+              builder: (context, _) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: widget.emergencyController.isLoading
+                        ? null
+                        : () async {
+                            await widget.emergencyController.addContact(
+                              userId: widget.userId,
+                              name: _nameController.text.trim(),
+                              phone: _phoneController.text.trim(),
+                              relation: _relationController.text.trim(),
+                            );
+
+                            _nameController.clear();
+                            _phoneController.clear();
+                            _relationController.clear();
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Contact Added Successfully"),
+                                ),
+                              );
+                            }
+                          },
+                    child: widget.emergencyController.isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Add Contact"),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 30),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Saved Contacts",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Emergency Contacts 🚨",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: StreamBuilder(
+                stream: widget.emergencyController
+                    .getEmergencyContacts(widget.userId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
 
-                  /// NAME
-                  TextField(
-                    controller: _nameController,
-                    decoration: _inputDecoration("Name"),
-                  ),
+                  if (!snapshot.hasData || snapshot.data == null) {
+                    return const Center(
+                      child: Text("No contacts found."),
+                    );
+                  }
 
-                  const SizedBox(height: 10),
+                  final data = snapshot.data as dynamic;
+                  final docs = data.docs;
 
-                  /// PHONE
-                  TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: _inputDecoration("Phone"),
-                  ),
+                  if (docs.isEmpty) {
+                    return const Center(
+                      child: Text("No contacts added yet."),
+                    );
+                  }
 
-                  const SizedBox(height: 10),
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final contact =
+                          docs[index].data() as Map<String, dynamic>;
 
-                  /// RELATION
-                  TextField(
-                    controller: _relationController,
-                    decoration: _inputDecoration("Relation"),
-                  ),
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          title: Text(contact['name'] ?? ''),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("📞 ${contact['phone']}"),
+                              Text("Relation: ${contact['relation']}"),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () async {
+                              final confirm = await _showDeleteConfirmation();
 
-                  const SizedBox(height: 20),
+                              if (confirm == true) {
+                                await widget.emergencyController
+                                    .deleteContact(docs[index].id);
 
-                  /// ADD BUTTON
-                  AnimatedBuilder(
-                    animation: widget.emergencyController,
-                    builder: (context, _) {
-                      return SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: widget.emergencyController.isLoading
-                              ? null
-                              : () async {
-                                  if (_nameController.text.isEmpty ||
-                                      _phoneController.text.isEmpty ||
-                                      _relationController.text.isEmpty) {
-                                    return;
-                                  }
-
-                                  await widget.emergencyController.addContact(
-                                    userId: userId,
-                                    name: _nameController.text,
-                                    phone: _phoneController.text,
-                                    relation: _relationController.text,
-                                  );
-
-                                  _nameController.clear();
-                                  _phoneController.clear();
-                                  _relationController.clear();
-
+                                if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content:
-                                          Text("Contact Added Successfully"),
+                                      content: Text("Contact Deleted"),
                                     ),
                                   );
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
+                                }
+                              }
+                            },
                           ),
-                          child: widget.emergencyController.isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
-                              : const Text("Add Contact"),
                         ),
                       );
                     },
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  const Text(
-                    "Saved Contacts",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  /// CONTACT LIST
-                  StreamBuilder<QuerySnapshot>(
-                    stream:
-                        widget.emergencyController.getEmergencyContacts(userId),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      final docs = snapshot.data!.docs;
-
-                      if (docs.isEmpty) {
-                        return const Text("No contacts added yet.");
-                      }
-
-                      return Column(
-                        children: docs.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.95),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      data['name'] ?? '',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text("📞 ${data['phone']}"),
-                                    Text("Relation: ${data['relation']}"),
-                                  ],
-                                ),
-
-                                /// DELETE WITH CONFIRM
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () async {
-                                    final shouldDelete = await showDialog<bool>(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          title: const Text("Delete Contact"),
-                                          content: const Text(
-                                              "Do you want to delete this contact?"),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context, false),
-                                              child: const Text("Cancel"),
-                                            ),
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context, true),
-                                              child: const Text(
-                                                "Delete",
-                                                style: TextStyle(
-                                                    color: Colors.red),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-
-                                    if (shouldDelete == true) {
-                                      await widget.emergencyController
-                                          .deleteContact(doc.id);
-
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text("Contact Deleted")),
-                                      );
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 60),
-                ],
+                  );
+                },
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmation() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Contact"),
+        content: const Text("Are you sure you want to delete this contact?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
           ),
-        );
-      },
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.95),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
       ),
     );
   }

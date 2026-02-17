@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../controllers/chat_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../controllers/chat_controller.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatController chatController;
+  final String userId;
 
-  const ChatScreen({super.key, required this.chatController});
+  const ChatScreen({
+    super.key,
+    required this.chatController,
+    required this.userId,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -21,18 +25,23 @@ class _ChatScreenState extends State<ChatScreen>
   String? _chatId;
   bool _loadingChat = true;
 
+  bool _showTyping = false;
+  bool _showError = false;
+
+  late AnimationController _typingController;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _typingController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800))
+      ..repeat();
     _initChat();
   }
 
   Future<void> _initChat() async {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-    final id =
-    await widget.chatController.getOrCreateChat(userId);
-
+    final id = await widget.chatController.getOrCreateChat(widget.userId);
 
     setState(() {
       _chatId = id;
@@ -45,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen>
     WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
+    _typingController.dispose();
     super.dispose();
   }
 
@@ -73,23 +83,37 @@ class _ChatScreenState extends State<ChatScreen>
 
     setState(() {
       _sending = true;
+      _showTyping = true;
+      _showError = false;
     });
 
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-
     try {
-      await widget.chatController
-          .handleMessage(userId: userId, message: text);
+      await widget.chatController.handleMessage(
+        userId: widget.userId,
+        message: text,
+      );
+
       _messageController.clear();
+      await Future.delayed(const Duration(seconds: 1));
     } catch (_) {
-      // optional error handling
+      setState(() {
+        _showError = true;
+      });
     } finally {
       setState(() {
         _sending = false;
+        _showTyping = false;
       });
     }
 
     _scrollToBottom();
+  }
+
+  String _formatTime(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return "$hour:$minute";
   }
 
   @override
@@ -105,15 +129,12 @@ class _ChatScreenState extends State<ChatScreen>
       body: SafeArea(
         child: Column(
           children: [
-            /// MESSAGE LIST
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream:
-                widget.chatController.listenToMessages(_chatId!),
+                stream: widget.chatController.listenToMessages(_chatId!),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(
-                        child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   final docs = snapshot.data!.docs;
@@ -125,10 +146,20 @@ class _ChatScreenState extends State<ChatScreen>
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
-                    itemCount: docs.length,
+                    itemCount: docs.length +
+                        (_showTyping ? 1 : 0) +
+                        (_showError ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final data =
-                      docs[index].data() as Map<String, dynamic>;
+                      if (_showTyping && index == docs.length) {
+                        return _buildTypingBubble();
+                      }
+
+                      if (_showError &&
+                          index == docs.length + (_showTyping ? 1 : 0)) {
+                        return _buildErrorBubble();
+                      }
+
+                      final data = docs[index].data() as Map<String, dynamic>;
 
                       final isUser = data['sender'] == 'user';
 
@@ -140,45 +171,38 @@ class _ChatScreenState extends State<ChatScreen>
                           margin: const EdgeInsets.symmetric(vertical: 6),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
-                          constraints:
-                          const BoxConstraints(maxWidth: 250),
+                          constraints: const BoxConstraints(maxWidth: 250),
                           decoration: BoxDecoration(
                             gradient: isUser
                                 ? const LinearGradient(colors: [
-                              Color(0xff4facfe),
-                              Color(0xff00f2fe)
-                            ])
+                                    Color(0xff4facfe),
+                                    Color(0xff00f2fe)
+                                  ])
                                 : const LinearGradient(colors: [
-                              Color(0xffe0e0e0),
-                              Color(0xffcfcfcf)
-                            ]),
-                            borderRadius: BorderRadius.only(
-                              topLeft:
-                              const Radius.circular(16),
-                              topRight:
-                              const Radius.circular(16),
-                              bottomLeft:
-                              Radius.circular(isUser ? 16 : 0),
-                              bottomRight:
-                              Radius.circular(isUser ? 0 : 16),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black
-                                    .withOpacity(0.1),
-                                blurRadius: 4,
-                                offset:
-                                const Offset(2, 2),
-                              ),
-                            ],
+                                    Color(0xffe0e0e0),
+                                    Color(0xffcfcfcf)
+                                  ]),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Text(
-                            data['text'] ?? '',
-                            style: TextStyle(
-                              color: isUser
-                                  ? Colors.white
-                                  : Colors.black87,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                data['text'] ?? '',
+                                style: TextStyle(
+                                  color: isUser ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              if (data['timestamp'] != null)
+                                Text(
+                                  _formatTime(data['timestamp']),
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: isUser
+                                          ? Colors.white70
+                                          : Colors.black54),
+                                ),
+                            ],
                           ),
                         ),
                       );
@@ -188,10 +212,9 @@ class _ChatScreenState extends State<ChatScreen>
               ),
             ),
 
-            /// INPUT FIELD
+            /// INPUT AREA (UNCHANGED UI)
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: const Color.fromARGB(255, 234, 237, 238),
               child: Row(
                 children: [
@@ -201,11 +224,9 @@ class _ChatScreenState extends State<ChatScreen>
                       decoration: const InputDecoration(
                         hintText: "Type a message...",
                         border: OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius.all(Radius.circular(30)),
+                          borderRadius: BorderRadius.all(Radius.circular(30)),
                         ),
-                        contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
                       ),
                     ),
                   ),
@@ -214,22 +235,63 @@ class _ChatScreenState extends State<ChatScreen>
                     backgroundColor: Colors.blueAccent,
                     child: IconButton(
                       icon: _sending
-                          ? const CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2)
-                          : const Icon(Icons.send,
-                          color: Colors.white),
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.send, color: Colors.white),
                       onPressed: _sending
                           ? null
-                          : () => _sendMessage(
-                          _messageController.text
-                              .trim()),
+                          : () => _sendMessage(_messageController.text.trim()),
                     ),
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingBubble() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FadeTransition(
+        opacity: _typingController,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Text(
+            "AI is typing...",
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBubble() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.shade100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text(
+          "Something went wrong 😔",
+          style: TextStyle(color: Colors.red),
         ),
       ),
     );
