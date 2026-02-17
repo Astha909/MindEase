@@ -6,11 +6,22 @@ import 'wellness_controller.dart';
 import 'emergency_controller.dart';
 
 class HomeController extends ChangeNotifier {
-  final ChatController chatController = ChatController();
-  final WellnessController wellnessController = WellnessController();
-  final EmergencyController emergencyController = EmergencyController();
-  final ProfileController profileController = ProfileController();
 
+  late final EmergencyController emergencyController;
+  late final ChatController chatController;
+  late final WellnessController wellnessController;
+  late final ProfileController profileController;
+
+  HomeController() {
+    emergencyController = EmergencyController();
+
+    chatController = ChatController(
+      emergencyController: emergencyController,
+    );
+
+    wellnessController = WellnessController();
+    profileController = ProfileController();
+  }
 
   int selectedIndex = 0;
 
@@ -19,7 +30,6 @@ class HomeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Future ready methods
   void openChat() {
     selectedIndex = 0;
     notifyListeners();

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/wellness_service.dart';
 import '../ai/ai_service.dart';
@@ -21,11 +20,11 @@ class WellnessController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Stream<QuerySnapshot> getMoodLogs(String userId) {
+  Stream getMoodLogs(String userId) {
     return _wellnessService.getMoodLogs(userId);
   }
 
-  Stream<QuerySnapshot> getWellnessTips() {
+  Stream getWellnessTips() {
     return _wellnessService.getWellnessTips();
   }
 
@@ -53,16 +52,8 @@ class WellnessController extends ChangeNotifier {
       tips = aiResult["tips"] is List ? aiResult["tips"] : [];
       activity = aiResult["activity"]?.toString() ?? "";
 
-      final snapshot = await FirebaseFirestore.instance
-          .collection('mood_logs')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .limit(1)
-          .get();
+      await _wellnessService.deleteLatestMood(userId);
 
-      if (snapshot.docs.isNotEmpty) {
-        await snapshot.docs.first.reference.delete();
-      }
 
       await _wellnessService.addMoodLog(
         userId: userId,
@@ -79,21 +70,13 @@ class WellnessController extends ChangeNotifier {
 
   Future<String?> getLatestMood(String userId) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('mood_logs')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isEmpty) return null;
-
-      return snapshot.docs.first.data()['mood'];
+      return await _wellnessService.fetchLatestMood(userId);
     } catch (e) {
       _setError("Failed to fetch latest mood");
       return null;
     }
   }
+
 
   Future<void> addMood({
     required String userId,

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
 import '../services/auth_service.dart';
 import '../services/user_profile_service.dart';
 
 class AuthController extends ChangeNotifier {
   final AuthService _authService = AuthService();
+  Stream<bool> get isLoggedIn =>
+      _authService.isLoggedIn;
+
+
   final UserProfileService _profileService = UserProfileService();
 
   bool isLoading = false;
@@ -22,7 +24,7 @@ class AuthController extends ChangeNotifier {
   }
 
   /// REGISTER
-  Future<User?> register({
+  Future<bool> register({
     required String email,
     required String password,
     required String name,
@@ -33,10 +35,8 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     _setError(null);
 
-    User? user;
-
     try {
-      user = await _authService.registerWithEmail(
+      final user = await _authService.registerWithEmail(
         email: email,
         password: password,
       );
@@ -52,20 +52,17 @@ class AuthController extends ChangeNotifier {
         sexuality: sexuality,
       );
 
-      return user;
+      return true;
     } catch (e) {
-      if (user != null) {
-        await user.delete(); // rollback
-      }
       _setError(e.toString());
-      return null;
+      return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  /// LOGIN (SAFE)
-  Future<User?> login({
+  /// LOGIN
+  Future<bool> login({
     required String email,
     required String password,
   }) async {
@@ -90,14 +87,61 @@ class AuthController extends ChangeNotifier {
         throw Exception("Profile missing. Please register again.");
       }
 
-      return user;
+      return true;
     } catch (e) {
       _setError(e.toString());
-      return null;
+      return false;
     } finally {
       _setLoading(false);
     }
   }
+
+  /// GOOGLE LOGIN
+  Future<bool> loginWithGoogle() async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      final user = await _authService.signInWithGoogle();
+
+      if (user == null) {
+        throw Exception("Google sign-in cancelled");
+      }
+
+      final profileExists =
+      await _profileService.doesUserProfileExist();
+
+      if (!profileExists) {
+        await _authService.logout();
+        throw Exception("Profile missing. Please register again.");
+      }
+
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+
+  /// PASSWORD RESET
+  Future<bool> resetPassword(String email) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      await _authService.sendPasswordReset(email);
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
 
   Future<void> logout() async {
     await _authService.logout();

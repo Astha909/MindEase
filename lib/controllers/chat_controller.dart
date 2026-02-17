@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
@@ -39,7 +38,7 @@ class ChatController extends ChangeNotifier {
     return _chatService.getOrCreateChat(userId);
   }
 
-  Stream<QuerySnapshot> listenToMessages(String chatId) {
+  Stream listenToMessages(String chatId) {
     return _chatService.listenToMessages(chatId);
   }
 

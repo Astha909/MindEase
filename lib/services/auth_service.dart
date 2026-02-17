@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 
@@ -38,7 +37,14 @@ class AuthService {
         email: email,
         password: password,
       );
-      return userCredential.user;
+      final User? user = userCredential.user;
+
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+
+      return user;
+
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Registration failed");
     }
@@ -59,11 +65,40 @@ class AuthService {
         email: email,
         password: password,
       );
-      return userCredential.user;
+      final User? user = userCredential.user;
+
+      if (user != null && !user.emailVerified) {
+        await _auth.signOut();
+        throw Exception("Please verify your email before logging in.");
+      }
+
+      return user;
+
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Login failed");
     }
   }
+
+  // PASSWORD RESET
+  Future<void> sendPasswordReset(String email) async {
+    if (email.trim().isEmpty) {
+      throw Exception("Email is required");
+    }
+
+    if (!_isValidEmail(email)) {
+      throw Exception("Invalid email format");
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(
+        email: email.trim(),
+      );
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? "Password reset failed");
+    }
+  }
+
+
 // GOOGLE SIGN-IN
   Future<User?> signInWithGoogle() async {
     try {
@@ -71,7 +106,7 @@ class AuthService {
       await GoogleSignIn().signIn();
 
       if (googleUser == null) {
-        return null; // user cancelled
+        return null;
       }
 
       final GoogleSignInAuthentication googleAuth =
@@ -86,24 +121,12 @@ class AuthService {
       final UserCredential userCredential =
       await _auth.signInWithCredential(credential);
 
-      final User? user = userCredential.user;
-
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({
-          'email': user.email,
-          'name': user.displayName ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-
-      return user;
+      return userCredential.user;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Google Sign-In failed");
     }
   }
+
 
   // LOGOUT
   Future<void> logout() async {
@@ -111,4 +134,8 @@ class AuthService {
   }
 
   User? get currentUser => _auth.currentUser;
+  Stream<bool> get isLoggedIn =>
+      _auth.authStateChanges().map((user) => user != null);
+
+
 }

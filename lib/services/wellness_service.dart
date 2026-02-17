@@ -188,4 +188,33 @@ class WellnessService {
         .orderBy('createdAt', descending: true)
         .snapshots();
   }
+
+  // DELETE latest mood log
+  Future<void> deleteLatestMood(String userId) async {
+    final snapshot = await _firestore
+        .collection('mood_logs')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.delete();
+    }
+  }
+
+  // FETCH latest mood
+  Future<String?> fetchLatestMood(String userId) async {
+    final snapshot = await _firestore
+        .collection('mood_logs')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+
+    return snapshot.docs.first.data()['mood'];
+  }
+
 }

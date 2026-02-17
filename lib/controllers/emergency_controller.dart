@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/emergency_service.dart';
 
@@ -18,7 +17,7 @@ class EmergencyController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Stream<QuerySnapshot> getEmergencyContacts(String userId) {
+  Stream getEmergencyContacts(String userId) {
     return _emergencyService.getEmergencyContacts(userId);
   }
 
