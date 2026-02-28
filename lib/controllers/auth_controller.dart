@@ -46,6 +46,7 @@ class AuthController extends ChangeNotifier {
       }
 
       await _profileService.createUserProfile(
+        user: user,
         name: name,
         age: age,
         gender: gender,
@@ -80,7 +81,7 @@ class AuthController extends ChangeNotifier {
       }
 
       final profileExists =
-      await _profileService.doesUserProfileExist();
+      await _profileService.doesUserProfileExist(user);
 
       if (!profileExists) {
         await _authService.logout();
@@ -109,7 +110,7 @@ class AuthController extends ChangeNotifier {
       }
 
       final profileExists =
-      await _profileService.doesUserProfileExist();
+      await _profileService.doesUserProfileExist(user);
 
       if (!profileExists) {
         await _authService.logout();

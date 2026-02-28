@@ -9,6 +9,8 @@ bool _isValidEmail(String email) {
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  late final Stream<bool> _authStateStream =
+  _auth.authStateChanges().map((user) => user != null);
 
   // REGISTER (AUTH ONLY)
   Future<User?> registerWithEmail({
@@ -134,8 +136,7 @@ class AuthService {
   }
 
   User? get currentUser => _auth.currentUser;
-  Stream<bool> get isLoggedIn =>
-      _auth.authStateChanges().map((user) => user != null);
+  Stream<bool> get isLoggedIn => _authStateStream;
 
 
 }

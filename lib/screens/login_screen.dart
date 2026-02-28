@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_null_comparison
+
 import 'package:flutter/material.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';

@@ -6,16 +6,13 @@ class UserProfileService {
 
   /// CREATE PROFILE
   Future<void> createUserProfile({
+
+    required User user,
     required String name,
     required int age,
     required String gender,
     String? sexuality,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      throw Exception("User not logged in");
-    }
 
     if (name.trim().isEmpty) {
       throw Exception("Name cannot be empty");
@@ -48,13 +45,11 @@ class UserProfileService {
       'overwhelmed': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
   }
 
   /// CHECK PROFILE EXISTS
-  Future<bool> doesUserProfileExist() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-
+  Future<bool> doesUserProfileExist(User user) async {
     final doc =
     await _firestore.collection('users').doc(user.uid).get();
     return doc.exists;

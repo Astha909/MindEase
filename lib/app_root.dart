@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'controllers/auth_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
@@ -28,16 +27,13 @@ class _AppRootState extends State<AppRoot> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AuthController>();
-
-    // Step 1: Show splash first
     if (_showSplash) {
       return const SplashScreen();
     }
 
     // Step 2: After splash, check session
-    return StreamBuilder<bool>(
-      stream: controller.isLoggedIn,
+    return StreamBuilder(
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -45,7 +41,7 @@ class _AppRootState extends State<AppRoot> {
           );
         }
 
-        if (snapshot.data == true) {
+        if (snapshot.hasData) {
           return const HomeScreen();
         } else {
           return const LoginScreen();

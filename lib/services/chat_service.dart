@@ -5,22 +5,30 @@ class ChatService {
 
   // 1. Create or get chat
   Future<String> getOrCreateChat(String userId) async {
+    print("🔎 getOrCreateChat started for user: $userId");
+
     final query = await _firestore
         .collection('chats')
         .where('userId', isEqualTo: userId)
         .limit(1)
         .get();
 
+    print("📦 Query completed. Docs: ${query.docs.length}");
+
     if (query.docs.isNotEmpty) {
+      print("✅ Existing chat found");
       return query.docs.first.id;
     }
+
+    print("🆕 Creating new chat");
 
     final doc = await _firestore.collection('chats').add({
       'userId': userId,
       'lastMessage': '',
       'timestamp': FieldValue.serverTimestamp(),
-
     });
+
+    print("🎉 Chat created: ${doc.id}");
 
     return doc.id;
   }
@@ -39,13 +47,13 @@ class ChatService {
     await messageRef.add({
       'sender': sender, // user | ai
       'text': text,
-      'timestamp': DateTime.now(),
+      'timestamp': FieldValue.serverTimestamp(),
 
     });
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': text,
-      'updatedAt': DateTime.now(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 

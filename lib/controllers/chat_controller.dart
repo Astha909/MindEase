@@ -63,9 +63,10 @@ class ChatController extends ChangeNotifier {
     return null;
   } */
 
-  Future<void> handleMessage({
-    required String userId,
-    required String message,
+    Future<void> handleMessage({
+      required String chatId,
+      required String userId,
+      required String message,
   }) async {
     if (message.trim().isEmpty) return;
 
@@ -73,7 +74,6 @@ class ChatController extends ChangeNotifier {
     _setError(null);
 
     try {
-      final chatId = await _chatService.getOrCreateChat(userId);
 
       // Save user message
       await _chatService.sendMessage(
