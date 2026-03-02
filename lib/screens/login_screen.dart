@@ -1,6 +1,7 @@
 // ignore_for_file: unnecessary_null_comparison
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
@@ -13,8 +14,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final AuthController _authController = AuthController();
-
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -27,6 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authController = Provider.of<AuthController>(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFE6FAFA),
       body: SafeArea(
@@ -59,30 +60,39 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
-                    try {
-                      final user = await _authController.login(
-                        email: _emailController.text.trim(),
-                        password: _passwordController.text.trim(),
-                      );
+                    final success = await authController.login(
+                      email: _emailController.text.trim(),
+                      password: _passwordController.text.trim(),
+                    );
 
-                      if (user != null) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HomeScreen(),
+                    if (success) {
+                      final user = authController.currentUser;
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomeScreen(
+                            userId: user!.uid,
                           ),
-                        );
-                      }
-                    } catch (e) {
+                        ),
+                      );
+                    } else if (authController.errorMessage != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
+                        SnackBar(
+                          content: Text(authController.errorMessage!),
+                        ),
                       );
                     }
-
-                    setState(() {});
                   },
-                  child: _authController.isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                  child: authController.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text('Login'),
                 ),
               ),
@@ -92,7 +102,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const RegisterScreen(),
+                      builder: (_) => RegisterScreen(
+                        authController: authController,
+                      ),
                     ),
                   );
                 },

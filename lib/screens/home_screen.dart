@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../controllers/home_controller.dart';
-import '../controllers/emergency_controller.dart';
-import '../controllers/chat_controller.dart';
 import 'chat_screen.dart';
 import 'mood_screen.dart';
 import 'emergency_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String userId;
+
+  const HomeScreen({
+    super.key,
+    required this.userId,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,32 +20,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final HomeController _homeController = HomeController();
-  late final EmergencyController _emergencyController;
-  late final ChatController _chatController;
-
-  @override
-  void initState() {
-    super.initState();
-    _emergencyController = EmergencyController();
-    _chatController = ChatController(
-      emergencyController: _emergencyController,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text("User not logged in")),
-      );
-    }
-
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FF),
-
-      /// 🌈 APPBAR (UNCHANGED)
       appBar: AppBar(
         backgroundColor: const Color(0xFFF6F8FF),
         elevation: 0,
@@ -94,19 +75,15 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-
-      /// 🔄 SCREEN SWITCH (UNCHANGED)
       body: AnimatedBuilder(
         animation: _homeController,
         builder: (context, _) {
           return AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
-            child: _buildCurrentScreen(user.uid),
+            child: _buildCurrentScreen(),
           );
         },
       ),
-
-      /// 🌟 BOTTOM NAV (UNCHANGED)
       bottomNavigationBar: AnimatedBuilder(
         animation: _homeController,
         builder: (context, _) {
@@ -156,24 +133,20 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildCurrentScreen(String userId) {
+  Widget _buildCurrentScreen() {
     switch (_homeController.selectedIndex) {
       case 0:
         return ChatScreen(
           key: const ValueKey(0),
-          chatController: _chatController,
-          userId: userId,
+          chatController: _homeController.chatController,
+          userId: widget.userId,
         );
       case 1:
-        return MoodScreen(
-          key: const ValueKey(1),
-          userId: userId,
-        );
+        return const MoodScreen(key: ValueKey(1));
       case 2:
         return EmergencyScreen(
           key: const ValueKey(2),
-          userId: userId,
-          emergencyController: _emergencyController,
+          emergencyController: _homeController.emergencyController,
         );
       default:
         return const SizedBox();

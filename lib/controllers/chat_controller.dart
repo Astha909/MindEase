@@ -20,8 +20,7 @@ class ChatController extends ChangeNotifier {
     AIService? aiService,
     WellnessService? wellnessService,
   })  : _chatService = chatService ?? ChatService(),
-        _emergencyController =
-            emergencyController ?? EmergencyController(),
+        _emergencyController = emergencyController ?? EmergencyController(),
         _aiService = aiService ?? AIService(CohereProvider()),
         _wellnessService = wellnessService ?? WellnessService();
 
@@ -34,6 +33,7 @@ class ChatController extends ChangeNotifier {
     errorMessage = message;
     notifyListeners();
   }
+
   Future<String> getOrCreateChat(String userId) {
     return _chatService.getOrCreateChat(userId);
   }
@@ -63,10 +63,10 @@ class ChatController extends ChangeNotifier {
     return null;
   } */
 
-    Future<void> handleMessage({
-      required String chatId,
-      required String userId,
-      required String message,
+  Future<void> handleMessage({
+    required String chatId,
+    required String userId,
+    required String message,
   }) async {
     if (message.trim().isEmpty) return;
 
@@ -74,15 +74,12 @@ class ChatController extends ChangeNotifier {
     _setError(null);
 
     try {
-
       // Save user message
       await _chatService.sendMessage(
         chatId: chatId,
         sender: "user",
         text: message,
       );
-
-
 
 // 🧠 Get structured AI response from Cohere
       final aiResult = await _aiService.getReply(message);
@@ -91,8 +88,7 @@ class ChatController extends ChangeNotifier {
       final chatReply = aiResult["chat_reply"]?.toString() ?? "";
       final tips = aiResult["tips"] as List<dynamic>? ?? [];
       final activity = aiResult["activity"]?.toString() ?? "";
-      final crisisLevel =
-          aiResult["crisis_level"]?.toString() ?? "none";
+      final crisisLevel = aiResult["crisis_level"]?.toString() ?? "none";
 
 // 🚨 Severe-only escalation
       if (crisisLevel == "severe") {
@@ -106,8 +102,7 @@ class ChatController extends ChangeNotifier {
         await _chatService.sendMessage(
           chatId: chatId,
           sender: "ai",
-          text:
-          "I’m really concerned about what you just shared. "
+          text: "I’m really concerned about what you just shared. "
               "You are not alone. If you’re in immediate danger, "
               "please contact local emergency services right now "
               "or reach out to someone you trust.",
@@ -115,7 +110,6 @@ class ChatController extends ChangeNotifier {
 
         return;
       }
-
 
 // 💾 Save mood to Wellness system (always)
       await _wellnessService.addMoodLog(
@@ -146,9 +140,6 @@ class ChatController extends ChangeNotifier {
         sender: "ai",
         text: finalReply,
       );
-
-
-
     } catch (e) {
       _setError("Failed to process message");
     } finally {
