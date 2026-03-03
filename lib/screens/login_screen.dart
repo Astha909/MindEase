@@ -66,13 +66,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
 
                     if (success) {
-                      final user = authController.currentUser;
+                      final uid = authController.getCurrentUserId();
 
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (_) => HomeScreen(
-                            userId: user!.uid,
+                            userId: uid!,
                           ),
                         ),
                       );

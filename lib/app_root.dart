@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'controllers/auth_controller.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
@@ -32,8 +33,10 @@ class _AppRootState extends State<AppRoot> {
     }
 
     // Step 2: After splash, check session
-    return StreamBuilder(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    final authController = Provider.of<AuthController>(context);
+
+    return StreamBuilder<bool>(
+      stream: authController.isLoggedIn,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -42,7 +45,13 @@ class _AppRootState extends State<AppRoot> {
         }
 
         if (snapshot.hasData) {
-          return const HomeScreen();
+          final userId = authController.getCurrentUserId();
+
+          if (userId == null) {
+            return const LoginScreen();
+          }
+
+          return HomeScreen(userId: userId);
         } else {
           return const LoginScreen();
         }

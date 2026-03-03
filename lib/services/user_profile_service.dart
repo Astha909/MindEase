@@ -112,11 +112,13 @@ class UserProfileService {
       throw Exception("User not logged in");
     }
 
-    // Delete Firestore profile
-    await _firestore.collection('users').doc(user.uid).delete();
+    final uid = user.uid;
 
-    // Delete Firebase Auth account
+    // First delete Firebase Auth account
     await user.delete();
+
+    // Then delete Firestore profile
+    await _firestore.collection('users').doc(uid).delete();
   }
 
 }

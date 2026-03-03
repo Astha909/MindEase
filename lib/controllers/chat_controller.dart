@@ -112,12 +112,18 @@ class ChatController extends ChangeNotifier {
       }
 
 // 💾 Save mood to Wellness system (always)
-      await _wellnessService.addMoodLog(
-        userId: userId,
-        mood: mood,
-        note: activity,
-        tips: tips,
-      );
+      // 💾 Save mood to Wellness system (non-blocking)
+      try {
+        await _wellnessService.addMoodLog(
+          userId: userId,
+          mood: mood,
+          note: activity,
+          tips: tips,
+        );
+      } catch (e) {
+        // Do NOT break chat if mood logging fails
+        debugPrint("Mood log failed: $e");
+      }
 
 // 🔴 Option 2: Show tip only if mood is negative
       final negativeMoods = [

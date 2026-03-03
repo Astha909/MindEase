@@ -69,9 +69,14 @@ class AuthService {
       );
       final User? user = userCredential.user;
 
-      if (user != null && !user.emailVerified) {
-        await _auth.signOut();
-        throw Exception("Please verify your email before logging in.");
+      if (user != null) {
+        await user.reload(); // 🔥 Force refresh
+        final refreshedUser = _auth.currentUser;
+
+        if (refreshedUser != null && !refreshedUser.emailVerified) {
+          await _auth.signOut();
+          throw Exception("Please verify your email before logging in.");
+        }
       }
 
       return user;

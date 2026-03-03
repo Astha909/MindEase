@@ -44,4 +44,13 @@ class HomeController extends ChangeNotifier {
     selectedIndex = 2;
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    emergencyController.dispose();
+    chatController.dispose();
+    wellnessController.dispose();
+    profileController.dispose();
+    super.dispose();
+  }
 }

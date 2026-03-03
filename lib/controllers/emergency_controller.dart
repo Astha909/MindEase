@@ -50,7 +50,7 @@ class EmergencyController extends ChangeNotifier {
         triggerType: triggerType,
       );
     } catch (e) {
-      _setError("Emergency process failed");
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }
@@ -81,7 +81,7 @@ class EmergencyController extends ChangeNotifier {
         relation: relation,
       );
     } catch (e) {
-      _setError("Failed to add emergency contact");
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }
@@ -99,7 +99,7 @@ class EmergencyController extends ChangeNotifier {
     try {
       await _emergencyService.deleteEmergencyContact(contactId);
     } catch (e) {
-      _setError("Failed to delete contact");
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }

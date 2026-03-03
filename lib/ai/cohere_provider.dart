@@ -86,7 +86,17 @@ class CohereProvider implements AIProvider {
           final rawText = first["text"];
 
           try {
-            final aiJson = jsonDecode(rawText);
+            // 🔥 Extract JSON safely (removes ```json fences automatically)
+            final jsonStart = rawText.indexOf('{');
+            final jsonEnd = rawText.lastIndexOf('}');
+
+            if (jsonStart == -1 || jsonEnd == -1) {
+              throw Exception("Invalid JSON structure from AI");
+            }
+
+            final cleanedText = rawText.substring(jsonStart, jsonEnd + 1);
+
+            final aiJson = jsonDecode(cleanedText);
 
             final mood = aiJson["mood"]?.toString();
             final tips = aiJson["tips"];

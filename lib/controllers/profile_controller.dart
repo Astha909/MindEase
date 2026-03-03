@@ -29,7 +29,7 @@ class ProfileController extends ChangeNotifier {
     try {
       userProfile = await _profileService.getUserProfile();
     } catch (e) {
-      _setError("Failed to load profile");
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }

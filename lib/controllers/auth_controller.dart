@@ -4,6 +4,7 @@ import '../services/user_profile_service.dart';
 
 class AuthController extends ChangeNotifier {
   final AuthService _authService = AuthService();
+
   Stream<bool> get isLoggedIn =>
       _authService.isLoggedIn;
 
@@ -22,7 +23,9 @@ class AuthController extends ChangeNotifier {
     errorMessage = message;
     notifyListeners();
   }
-
+  String? getCurrentUserId() {
+    return _authService.currentUser?.uid;
+  }
   /// REGISTER
   Future<bool> register({
     required String email,
@@ -55,6 +58,11 @@ class AuthController extends ChangeNotifier {
 
       return true;
     } catch (e) {
+      // Rollback auth user if profile creation fails
+      try {
+        await _authService.logout();
+      } catch (_) {}
+
       _setError(e.toString());
       return false;
     } finally {
@@ -84,7 +92,6 @@ class AuthController extends ChangeNotifier {
       await _profileService.doesUserProfileExist(user);
 
       if (!profileExists) {
-        await _authService.logout();
         throw Exception("Profile missing. Please register again.");
       }
 
@@ -113,7 +120,6 @@ class AuthController extends ChangeNotifier {
       await _profileService.doesUserProfileExist(user);
 
       if (!profileExists) {
-        await _authService.logout();
         throw Exception("Profile missing. Please register again.");
       }
 

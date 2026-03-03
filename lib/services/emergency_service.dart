@@ -176,9 +176,9 @@ class EmergencyService {
 
     try {
       // ⚠️ DEV ONLY: Add your Twilio credentials locally
-      const String accountSid = "";
-      const String authToken = "";
-      const String twilioPhone = "";
+      const String accountSid = " ";
+      const String authToken = " ";
+      const String twilioPhone = " ";
 
       final url = Uri.parse(
           "https://api.twilio.com/2010-04-01/Accounts/$accountSid/Messages.json");

@@ -52,7 +52,6 @@ class WellnessController extends ChangeNotifier {
       tips = aiResult["tips"] is List ? aiResult["tips"] : [];
       activity = aiResult["activity"]?.toString() ?? "";
 
-      await _wellnessService.deleteLatestMood(userId);
 
 
       await _wellnessService.addMoodLog(
@@ -62,7 +61,7 @@ class WellnessController extends ChangeNotifier {
         tips: tips,
       );
     } catch (e) {
-      _setError("Failed to analyze mood");
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }
@@ -72,7 +71,7 @@ class WellnessController extends ChangeNotifier {
     try {
       return await _wellnessService.fetchLatestMood(userId);
     } catch (e) {
-      _setError("Failed to fetch latest mood");
+      _setError(e.toString());
       return null;
     }
   }
@@ -99,7 +98,7 @@ class WellnessController extends ChangeNotifier {
         note: note ?? "",
       );
     } catch (e) {
-      _setError("Failed to add mood");
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }

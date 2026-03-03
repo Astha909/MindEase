@@ -206,21 +206,11 @@ class _ChatScreenState extends State<ChatScreen>
                   CircleAvatar(
                     backgroundColor: Colors.blueAccent,
                     child: IconButton(
-                      icon: widget.chatController.isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.send, color: Colors.white),
-                      onPressed: widget.chatController.isLoading
-                          ? null
-                          : () => _sendMessage(
-                                _messageController.text.trim(),
-                              ),
+                      icon: const Icon(Icons.send, color: Colors.white),
+
+                      onPressed: () => _sendMessage(
+                        _messageController.text.trim(),
+                      ),
                     ),
                   ),
                 ],
