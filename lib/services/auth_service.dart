@@ -9,8 +9,11 @@ bool _isValidEmail(String email) {
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  late final Stream<bool> _authStateStream =
-  _auth.authStateChanges().map((user) => user != null);
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  User? get currentUser => _auth.currentUser;
+  Stream<String?> get authUserIdStream =>
+      _auth.authStateChanges().map((user) => user?.uid);
 
   // REGISTER (AUTH ONLY)
   Future<User?> registerWithEmail({
@@ -140,8 +143,7 @@ class AuthService {
     await _auth.signOut();
   }
 
-  User? get currentUser => _auth.currentUser;
-  Stream<bool> get isLoggedIn => _authStateStream;
+
 
 
 }

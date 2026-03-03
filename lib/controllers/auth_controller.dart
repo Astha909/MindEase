@@ -5,9 +5,8 @@ import '../services/user_profile_service.dart';
 class AuthController extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  Stream<bool> get isLoggedIn =>
-      _authService.isLoggedIn;
-
+  Stream<String?> get authUserIdStream =>
+      _authService.authUserIdStream;
 
   final UserProfileService _profileService = UserProfileService();
 

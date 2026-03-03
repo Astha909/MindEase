@@ -35,8 +35,9 @@ class _AppRootState extends State<AppRoot> {
     // Step 2: After splash, check session
     final authController = Provider.of<AuthController>(context);
 
-    return StreamBuilder<bool>(
-      stream: authController.isLoggedIn,
+    return StreamBuilder<String?>(
+      stream: authController.authUserIdStream,
+
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -44,17 +45,13 @@ class _AppRootState extends State<AppRoot> {
           );
         }
 
-        if (snapshot.hasData) {
-          final userId = authController.getCurrentUserId();
+        final userId = snapshot.data;
 
-          if (userId == null) {
-            return const LoginScreen();
-          }
-
+        if (userId != null) {
           return HomeScreen(userId: userId);
-        } else {
-          return const LoginScreen();
         }
+
+        return const LoginScreen();
       },
     );
   }
