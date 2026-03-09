@@ -120,7 +120,7 @@ class _ChatScreenState extends State<ChatScreen>
                         );
                       }
 
-                      final docs = snapshot.data!.docs;
+                      final docs = snapshot.data!;
 
                       return ListView.builder(
                         controller: _scrollController,
@@ -138,8 +138,7 @@ class _ChatScreenState extends State<ChatScreen>
                             return _buildErrorBubble();
                           }
 
-                          final data =
-                              docs[index].data() as Map<String, dynamic>;
+                          final data = docs[index];
 
                           final isUser = data['sender'] == "user";
 
@@ -207,7 +206,6 @@ class _ChatScreenState extends State<ChatScreen>
                     backgroundColor: Colors.blueAccent,
                     child: IconButton(
                       icon: const Icon(Icons.send, color: Colors.white),
-
                       onPressed: () => _sendMessage(
                         _messageController.text.trim(),
                       ),

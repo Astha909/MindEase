@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -56,6 +57,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: _inputDecoration('Password'),
               ),
               const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text("Forgot Password?"),
+                ),
+              ),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -94,6 +109,70 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         )
                       : const Text('Login'),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text("OR"),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      side: const BorderSide(color: Colors.grey),
+                    ),
+                  ),
+                  icon: Image.network(
+                    "https://developers.google.com/identity/images/g-logo.png",
+                    height: 20,
+                  ),
+                  label: authController.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Continue with Google",
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                  onPressed: () async {
+                    final success = await authController.loginWithGoogle();
+
+                    if (success) {
+                      final uid = authController.getCurrentUserId();
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomeScreen(
+                            userId: uid!,
+                          ),
+                        ),
+                      );
+                    } else if (authController.errorMessage != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(authController.errorMessage!),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
               const SizedBox(height: 20),
