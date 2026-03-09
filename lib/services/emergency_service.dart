@@ -77,12 +77,14 @@ class EmergencyService {
     required String triggerType,
     required String detectedText,
     required List<String> keywordsFound,
+    int contactsNotified = 0,
   }) async {
     await _firestore.collection('emergency_logs').add({
       'userId': userId,
       'triggerType': triggerType,
       'detectedText': detectedText,
       'keywordsFound': keywordsFound,
+      'contactsNotified': contactsNotified,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -95,6 +97,7 @@ class EmergencyService {
     String triggerType = "keyword_detection",
   }) async {
     // 1️⃣ Check last emergency log for cooldown
+    int notifiedCount = 0;
     final recentLogs = await _firestore
         .collection('emergency_logs')
         .where('userId', isEqualTo: userId)
@@ -121,6 +124,7 @@ class EmergencyService {
             triggerType: triggerType,
             detectedText: message,
             keywordsFound: keywordsFound,
+            contactsNotified: 0,
           );
 
           return;
@@ -148,14 +152,17 @@ class EmergencyService {
         phone: phone,
         userMessage: message,
       );
+
+      notifiedCount++;
     }
 
     // 4️⃣ Save emergency log
     await saveEmergencyLog(
       userId: userId,
-      triggerType: "keyword_detection",
+      triggerType: triggerType,
       detectedText: message,
       keywordsFound: keywordsFound,
+      contactsNotified: notifiedCount,
     );
 
     print("🚨 Emergency flow completed.");
