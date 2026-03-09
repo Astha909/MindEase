@@ -94,6 +94,7 @@ class ChatController extends ChangeNotifier {
       // Save user message
       await _chatService.sendMessage(
         chatId: chatId,
+        userId: userId,
         sender: "user",
         text: message,
       );
@@ -118,6 +119,7 @@ class ChatController extends ChangeNotifier {
 
         await _chatService.sendMessage(
           chatId: chatId,
+          userId: userId,
           sender: "ai",
           text: "I’m really concerned about what you just shared. "
               "You are not alone. If you’re in immediate danger, "
@@ -160,6 +162,7 @@ class ChatController extends ChangeNotifier {
 // 📤 Send final AI reply to chat
       await _chatService.sendMessage(
         chatId: chatId,
+        userId: userId,
         sender: "ai",
         text: finalReply,
       );
