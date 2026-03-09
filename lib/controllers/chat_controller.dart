@@ -38,30 +38,47 @@ class ChatController extends ChangeNotifier {
     return _chatService.getOrCreateChat(userId);
   }
 
-  Stream listenToMessages(String chatId) {
+  Stream<List<Map<String, dynamic>>> listenToMessages(String chatId) {
     return _chatService.listenToMessages(chatId);
   }
 
-  /*String? detectMood(String message) {
-    final text = message.toLowerCase();
+  Future fetchMessages({
+    required String chatId,
+    dynamic lastDocument,
+    int limit = 20,
+  }) {
+    return _chatService.fetchMessages(
+      chatId: chatId,
+      lastDocument: lastDocument,
+      limit: limit,
+    );
+  }
 
-    if (text.contains("anxious") || text.contains("nervous")) {
-      return "anxiety";
-    }
+  Future<void> editMessage({
+    required String chatId,
+    required String messageId,
+    required String userId,
+    required String newText,
+  }) {
+    return _chatService.editMessage(
+      chatId: chatId,
+      messageId: messageId,
+      userId: userId,
+      newText: newText,
+    );
+  }
 
-    if (text.contains("sad") ||
-        text.contains("low") ||
-        text.contains("depressed")) {
-      return "self-care";
-    }
-
-    if (text.contains("stressed") ||
-        text.contains("overwhelmed")) {
-      return "stress";
-    }
-
-    return null;
-  } */
+  Future<void> deleteMessage({
+    required String chatId,
+    required String messageId,
+    required String userId,
+  }) {
+    return _chatService.deleteMessage(
+      chatId: chatId,
+      messageId: messageId,
+      userId: userId,
+    );
+  }
 
   Future<void> handleMessage({
     required String chatId,
