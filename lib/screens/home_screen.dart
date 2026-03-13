@@ -145,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen>
         return MoodScreen(
           key: const ValueKey(1),
           userId: widget.userId,
+          wellnessController: _homeController.wellnessController,
         );
       case 2:
         return EmergencyScreen(
@@ -156,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen>
         return const SizedBox();
     }
   }
+
   @override
   void dispose() {
     _homeController.dispose();

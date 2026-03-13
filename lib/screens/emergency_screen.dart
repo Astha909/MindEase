@@ -21,6 +21,14 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   final TextEditingController _relationController = TextEditingController();
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _relationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -105,14 +113,13 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                     );
                   }
 
-                  if (!snapshot.hasData || snapshot.data == null) {
+                  if (!snapshot.hasData) {
                     return const Center(
                       child: Text("No contacts found."),
                     );
                   }
 
-                  final data = snapshot.data as dynamic;
-                  final docs = data.docs;
+                  final docs = snapshot.data!.docs;
 
                   if (docs.isEmpty) {
                     return const Center(

@@ -4,8 +4,13 @@ import 'dart:math';
 
 class MoodScreen extends StatefulWidget {
   final String userId;
+  final WellnessController wellnessController;
 
-  const MoodScreen({super.key, required this.userId});
+  const MoodScreen({
+    super.key,
+    required this.userId,
+    required this.wellnessController,
+  });
 
   @override
   State<MoodScreen> createState() => _MoodScreenState();
@@ -13,7 +18,7 @@ class MoodScreen extends StatefulWidget {
 
 class _MoodScreenState extends State<MoodScreen>
     with SingleTickerProviderStateMixin {
-  final WellnessController _controller = WellnessController();
+  late final WellnessController _controller;
 
   double _moodValue = 5;
   late AnimationController _animationController;
@@ -48,6 +53,8 @@ class _MoodScreenState extends State<MoodScreen>
   @override
   void initState() {
     super.initState();
+
+    _controller = widget.wellnessController;
     _animationController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500));
 

@@ -45,60 +45,74 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 30),
+
+              /// EMAIL FIELD
               TextField(
                 controller: _emailController,
                 decoration: _inputDecoration('Email'),
                 keyboardType: TextInputType.emailAddress,
               ),
+
               const SizedBox(height: 16),
+
+              /// PASSWORD FIELD
               TextField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: _inputDecoration('Password'),
               ),
+
               const SizedBox(height: 24),
+
+              /// FORGOT PASSWORD
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen(),
-                      ),
-                    );
-                  },
+                  onPressed: authController.isLoading
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
                   child: const Text("Forgot Password?"),
                 ),
               ),
+
+              /// LOGIN BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    final success = await authController.login(
-                      email: _emailController.text.trim(),
-                      password: _passwordController.text.trim(),
-                    );
+                  onPressed: authController.isLoading
+                      ? null
+                      : () async {
+                          final success = await authController.login(
+                            email: _emailController.text.trim(),
+                            password: _passwordController.text.trim(),
+                          );
 
-                    if (success) {
-                      final uid = authController.getCurrentUserId();
+                          if (success) {
+                            final uid = authController.getCurrentUserId();
 
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => HomeScreen(
-                            userId: uid!,
-                          ),
-                        ),
-                      );
-                    } else if (authController.errorMessage != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(authController.errorMessage!),
-                        ),
-                      );
-                    }
-                  },
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => HomeScreen(
+                                  userId: uid!,
+                                ),
+                              ),
+                            );
+                          } else if (authController.errorMessage != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(authController.errorMessage!),
+                              ),
+                            );
+                          }
+                        },
                   child: authController.isLoading
                       ? const SizedBox(
                           height: 20,
@@ -111,7 +125,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       : const Text('Login'),
                 ),
               ),
+
               const SizedBox(height: 20),
+
+              /// DIVIDER
               Row(
                 children: const [
                   Expanded(child: Divider()),
@@ -122,7 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   Expanded(child: Divider()),
                 ],
               ),
+
               const SizedBox(height: 20),
+
+              /// GOOGLE LOGIN BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -151,42 +171,50 @@ class _LoginScreenState extends State<LoginScreen> {
                           "Continue with Google",
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
-                  onPressed: () async {
-                    final success = await authController.loginWithGoogle();
+                  onPressed: authController.isLoading
+                      ? null
+                      : () async {
+                          final success =
+                              await authController.loginWithGoogle();
 
-                    if (success) {
-                      final uid = authController.getCurrentUserId();
+                          if (success) {
+                            final uid = authController.getCurrentUserId();
 
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => HomeScreen(
-                            userId: uid!,
-                          ),
-                        ),
-                      );
-                    } else if (authController.errorMessage != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(authController.errorMessage!),
-                        ),
-                      );
-                    }
-                  },
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => HomeScreen(
+                                  userId: uid!,
+                                ),
+                              ),
+                            );
+                          } else if (authController.errorMessage != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(authController.errorMessage!),
+                              ),
+                            );
+                          }
+                        },
                 ),
               ),
+
               const SizedBox(height: 20),
+
+              /// REGISTER NAVIGATION
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RegisterScreen(
-                        authController: authController,
-                      ),
-                    ),
-                  );
-                },
+                onTap: authController.isLoading
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RegisterScreen(
+                              authController: authController,
+                            ),
+                          ),
+                        );
+                      },
                 child: const Text(
                   "Don't have an account? Register",
                   style: TextStyle(

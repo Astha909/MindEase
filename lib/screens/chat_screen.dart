@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../controllers/chat_controller.dart';
+import '../controllers/emergency_controller.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatController chatController;
@@ -17,12 +18,18 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen>
     with SingleTickerProviderStateMixin {
+  final EmergencyController _emergencyController = EmergencyController();
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   String? _chatId;
   bool _loadingChat = true;
   bool _showError = false;
+
+  bool _isLoadingMore = false;
+  bool _hasMoreMessages = true;
+  dynamic _lastDocument;
 
   late AnimationController _typingController;
 
@@ -36,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen>
     )..repeat();
 
     _initChat();
+    _scrollController.addListener(_handleScroll);
   }
 
   Future<void> _initChat() async {
@@ -45,6 +53,23 @@ class _ChatScreenState extends State<ChatScreen>
       _chatId = id;
       _loadingChat = false;
     });
+  }
+
+  void _handleScroll() async {
+    if (_scrollController.position.pixels <= 50 &&
+        !_isLoadingMore &&
+        _hasMoreMessages &&
+        _chatId != null) {
+      _isLoadingMore = true;
+
+      await widget.chatController.fetchMessages(
+        chatId: _chatId!,
+        lastDocument: _lastDocument,
+        limit: 20,
+      );
+
+      _isLoadingMore = false;
+    }
   }
 
   @override
@@ -75,6 +100,16 @@ class _ChatScreenState extends State<ChatScreen>
     });
 
     try {
+      final keywords = _emergencyController.checkEmergencyKeywords(text);
+
+      if (keywords.isNotEmpty) {
+        await _emergencyController.triggerEmergency(
+          userId: widget.userId,
+          message: text,
+          keywordsFound: keywords,
+        );
+      }
+
       await widget.chatController.handleMessage(
         chatId: _chatId!,
         userId: widget.userId,
@@ -91,6 +126,107 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollToBottom();
   }
 
+  /// MESSAGE OPTIONS
+  void _showMessageOptions(Map<String, dynamic> message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Message Options"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showEditDialog(message);
+            },
+            child: const Text("Edit"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showDeleteConfirmation(message);
+            },
+            child: const Text("Delete"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// DELETE CONFIRMATION DIALOG
+  void _showDeleteConfirmation(Map<String, dynamic> message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Message"),
+        content: const Text("Are you sure you want to delete this message?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              await widget.chatController.deleteMessage(
+                chatId: _chatId!,
+                messageId: message['id'],
+                userId: widget.userId,
+              );
+            },
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// EDIT MESSAGE DIALOG
+  void _showEditDialog(Map<String, dynamic> message) {
+    final controller = TextEditingController(text: message['text']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit Message"),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newText = controller.text.trim();
+
+              if (newText.isNotEmpty) {
+                await widget.chatController.editMessage(
+                  chatId: _chatId!,
+                  messageId: message['id'],
+                  userId: widget.userId,
+                  newText: newText,
+                );
+              }
+
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loadingChat) {
@@ -104,7 +240,6 @@ class _ChatScreenState extends State<ChatScreen>
       body: SafeArea(
         child: Column(
           children: [
-            /// MESSAGE LIST
             Expanded(
               child: AnimatedBuilder(
                 animation: widget.chatController,
@@ -127,8 +262,18 @@ class _ChatScreenState extends State<ChatScreen>
                         padding: const EdgeInsets.all(16),
                         itemCount: docs.length +
                             (isTyping ? 1 : 0) +
-                            (_showError ? 1 : 0),
+                            (_showError ? 1 : 0) +
+                            (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          if (_isLoadingMore && index == 0) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(8),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+
                           if (isTyping && index == docs.length) {
                             return _buildTypingBubble();
                           }
@@ -139,10 +284,9 @@ class _ChatScreenState extends State<ChatScreen>
                           }
 
                           final data = docs[index];
-
                           final isUser = data['sender'] == "user";
 
-                          return Align(
+                          Widget bubble = Align(
                             alignment: isUser
                                 ? Alignment.centerRight
                                 : Alignment.centerLeft,
@@ -175,6 +319,15 @@ class _ChatScreenState extends State<ChatScreen>
                               ),
                             ),
                           );
+
+                          if (isUser) {
+                            bubble = GestureDetector(
+                              onLongPress: () => _showMessageOptions(data),
+                              child: bubble,
+                            );
+                          }
+
+                          return bubble;
                         },
                       );
                     },
@@ -182,8 +335,6 @@ class _ChatScreenState extends State<ChatScreen>
                 },
               ),
             ),
-
-            /// INPUT AREA
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: const Color.fromARGB(255, 234, 237, 238),
