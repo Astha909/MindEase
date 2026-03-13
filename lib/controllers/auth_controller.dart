@@ -147,7 +147,21 @@ class AuthController extends ChangeNotifier {
       _setLoading(false);
     }
   }
+  /// SEND VERIFICATION EMAIL AGAIN
+  Future<bool> sendVerificationEmail() async {
+    _setLoading(true);
+    _setError(null);
 
+    try {
+      await _authService.sendVerificationEmail();
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
 
   Future<void> logout() async {
     await _authService.logout();

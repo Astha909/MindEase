@@ -8,11 +8,11 @@ class ChatService {
 
   // Simple encryption helpers
   String _encrypt(String text) {
-    return text.split('').reversed.join();
+    return String.fromCharCodes(text.runes.toList().reversed);
   }
 
   String _decrypt(String text) {
-    return text.split('').reversed.join();
+    return String.fromCharCodes(text.runes.toList().reversed);
   }
   // 1. Create or get chat
   Future<String> getOrCreateChat(String userId) async {
@@ -57,16 +57,16 @@ class ChatService {
         .collection('messages');
 
     await messageRef.add({
-      'sender': sender, // user | ai
+      'sender': sender,
       'userId': userId,
       'text': _encrypt(text),
-      'timestamp': FieldValue.serverTimestamp(),
-
+      'encrypted': true,
+      'timestamp': Timestamp.now(),
     });
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': _encrypt(text),
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': Timestamp.now(),
     });
   }
 
@@ -133,15 +133,23 @@ class ChatService {
         .collection('chats')
         .doc(chatId)
         .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .limit(50)
+        .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = Map<String, dynamic>.from(doc.data());
 
-        if (data['text'] != null) {
-          data['text'] = _decrypt(data['text']);
+        if (data['encrypted'] == true && data['text'] != null) {
+          try {
+            data['text'] = _decrypt(data['text']);
+          } catch (_) {
+            // fallback for old encryption
+            data['text'] = data['text']
+                .toString()
+                .split('')
+                .reversed
+                .join();
+          }
         }
 
         data['id'] = doc.id;
@@ -160,7 +168,7 @@ class ChatService {
         .collection('chats')
         .doc(chatId)
         .collection('messages')
-        .orderBy('timestamp', descending: true)
+        .orderBy('timestamp', descending: false)
         .limit(limit);
 
     if (lastDocument != null) {

@@ -143,7 +143,24 @@ class AuthService {
     await _auth.signOut();
   }
 
+// SEND VERIFICATION EMAIL AGAIN
+  Future<void> sendVerificationEmail() async {
+    final user = _auth.currentUser;
 
+    if (user == null) {
+      throw Exception("User not logged in");
+    }
+
+    if (user.emailVerified) {
+      throw Exception("Email already verified");
+    }
+
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? "Failed to send verification email");
+    }
+  }
 
 
 }

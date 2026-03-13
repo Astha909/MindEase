@@ -100,7 +100,20 @@ class ChatController extends ChangeNotifier {
       );
 
 // 🧠 Get structured AI response from Cohere
-      final aiResult = await _aiService.getReply(message);
+      Map<String, dynamic> aiResult = {};
+
+      try {
+        aiResult = await _aiService.getReply(message);
+      } catch (e) {
+        debugPrint("AI error: $e");
+        aiResult = {
+          "mood": "neutral",
+          "chat_reply": "I'm here with you. Tell me more.",
+          "tips": [],
+          "activity": "",
+          "crisis_level": "none"
+        };
+      }
 
       final mood = aiResult["mood"]?.toString() ?? "neutral";
       final chatReply = aiResult["chat_reply"]?.toString() ?? "";
