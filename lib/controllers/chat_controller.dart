@@ -128,6 +128,7 @@ class ChatController extends ChangeNotifier {
           message: message,
           keywordsFound: ["ai_severe_detection"],
           triggerType: "ai_severe_detection",
+          isConfirmed: true,
         );
 
         await _chatService.sendMessage(

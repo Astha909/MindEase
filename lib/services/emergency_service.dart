@@ -148,8 +148,10 @@ class EmergencyService {
       final data = doc.data();
       final phone = data['phone'];
 
+      final formattedPhone = _formatPhoneNumber(phone);
+
       await _sendMockSMS(
-        phone: phone,
+        phone: formattedPhone,
         userMessage: message,
       );
 
@@ -209,6 +211,20 @@ class EmergencyService {
       print("SMS error: $e");
     }
   }
+  String _formatPhoneNumber(String phone) {
+    phone = phone.trim();
 
+    if (phone.startsWith('+')) return phone;
+
+    if (phone.startsWith('0')) {
+      return '+91${phone.substring(1)}';
+    }
+
+    if (phone.length == 10) {
+      return '+91$phone';
+    }
+
+    return phone;
+  }
 
 }

@@ -107,6 +107,7 @@ class _ChatScreenState extends State<ChatScreen>
           userId: widget.userId,
           message: text,
           keywordsFound: keywords,
+          isConfirmed: true,
         );
       }
 

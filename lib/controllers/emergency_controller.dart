@@ -32,10 +32,15 @@ class EmergencyController extends ChangeNotifier {
     required String userId,
     required String message,
     required List<String> keywordsFound,
+    required bool isConfirmed,
     String triggerType = "keyword_detection",
   }) async {
     if (message.trim().isEmpty || keywordsFound.isEmpty) {
       _setError("Invalid emergency trigger");
+      return;
+    }
+    if (!isConfirmed) {
+      _setError("Emergency not confirmed");
       return;
     }
 
