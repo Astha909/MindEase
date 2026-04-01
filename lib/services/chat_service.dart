@@ -61,12 +61,12 @@ class ChatService {
       'userId': userId,
       'text': _encrypt(text),
       'encrypted': true,
-      'timestamp': Timestamp.now(),
+      'timestamp': FieldValue.serverTimestamp(),
     });
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': _encrypt(text),
-      'updatedAt': Timestamp.now(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -138,6 +138,9 @@ class ChatService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = Map<String, dynamic>.from(doc.data());
+        if (data['timestamp'] == null) {
+          data['timestamp'] = Timestamp.now();
+        }
 
         if (data['encrypted'] == true && data['text'] != null) {
           try {

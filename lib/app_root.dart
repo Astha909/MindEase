@@ -28,21 +28,14 @@ class _AppRootState extends State<AppRoot> {
 
   @override
   Widget build(BuildContext context) {
-    if (_showSplash) {
-      return const SplashScreen();
-    }
-
-    // Step 2: After splash, check session
     final authController = Provider.of<AuthController>(context);
 
     return StreamBuilder<String?>(
       stream: authController.authUserIdStream,
-
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+        // Keep splash until Firebase is ready
+        if (_showSplash || snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
         }
 
         final userId = snapshot.data;

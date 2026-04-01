@@ -13,7 +13,7 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
   Stream<String?> get authUserIdStream =>
-      _auth.authStateChanges().map((user) => user?.uid);
+      _auth.idTokenChanges().map((user) => user?.uid);
 
   // REGISTER (AUTH ONLY)
   Future<User?> registerWithEmail({
@@ -112,8 +112,12 @@ class AuthService {
 // GOOGLE SIGN-IN
   Future<User?> signInWithGoogle() async {
     try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      await googleSignIn.signOut(); // 🔥 force account picker
+
       final GoogleSignInAccount? googleUser =
-      await GoogleSignIn().signIn();
+      await googleSignIn.signIn();
 
       if (googleUser == null) {
         return null;

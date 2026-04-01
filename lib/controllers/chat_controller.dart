@@ -42,16 +42,22 @@ class ChatController extends ChangeNotifier {
     return _chatService.listenToMessages(chatId);
   }
 
-  Future fetchMessages({
+  Future<List<Map<String, dynamic>>> fetchMessages({
     required String chatId,
     dynamic lastDocument,
     int limit = 20,
-  }) {
-    return _chatService.fetchMessages(
+  }) async {
+    final snapshot = await _chatService.fetchMessages(
       chatId: chatId,
       lastDocument: lastDocument,
       limit: limit,
     );
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      return data;
+    }).toList();
   }
 
   Future<void> editMessage({

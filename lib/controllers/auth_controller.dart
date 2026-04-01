@@ -138,7 +138,7 @@ class AuthController extends ChangeNotifier {
     _setError(null);
 
     try {
-      await _authService.sendPasswordReset(email);
+      await _authService.sendPasswordReset(email.trim());
       return true;
     } catch (e) {
       _setError(e.toString());
