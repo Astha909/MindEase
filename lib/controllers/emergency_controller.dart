@@ -21,6 +21,9 @@ class EmergencyController extends ChangeNotifier {
     return _emergencyService.getEmergencyContacts(userId);
   }
 
+  Stream getEmergencyLogs(String userId) {
+    return _emergencyService.getEmergencyLogs(userId);
+  }
   /// 🔍 Check for emergency keywords
   List<String> checkEmergencyKeywords(String message) {
     if (message.trim().isEmpty) return [];

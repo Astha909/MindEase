@@ -88,6 +88,14 @@ class EmergencyService {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
+
+  Stream<QuerySnapshot> getEmergencyLogs(String userId) {
+    return _firestore
+        .collection('emergency_logs')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
   // 🚨 TRIGGER EMERGENCY FLOW
   // 🚨 TRIGGER EMERGENCY FLOW
   Future<void> triggerEmergency({
