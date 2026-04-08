@@ -3,6 +3,7 @@ import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/services/wellness_service.dart';
+import '../utils/mood_labels.dart';
 import '../ai/cohere_provider.dart';
 
 class ChatController extends ChangeNotifier {
@@ -34,6 +35,16 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _normalizeMoodWords(String input) {
+    String normalized = input.toLowerCase().trim();
+
+    MoodLabels.synonymMap.forEach((key, value) {
+      final regex = RegExp(r'\b' + key + r'\b');
+      normalized = normalized.replaceAll(regex, value);
+    });
+
+    return normalized;
+  }
   Future<String> getOrCreateChat(String userId) {
     return _chatService.getOrCreateChat(userId);
   }
@@ -44,12 +55,12 @@ class ChatController extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> fetchMessages({
     required String chatId,
-    dynamic lastDocument,
+    Map<String, dynamic>? lastMessage,
     int limit = 20,
   }) async {
     final snapshot = await _chatService.fetchMessages(
       chatId: chatId,
-      lastDocument: lastDocument,
+      lastMessage: lastMessage,
       limit: limit,
     );
 
@@ -109,7 +120,8 @@ class ChatController extends ChangeNotifier {
       Map<String, dynamic> aiResult = {};
 
       try {
-        aiResult = await _aiService.getReply(message);
+        final normalizedMessage = _normalizeMoodWords(message);
+        aiResult = await _aiService.getReply(normalizedMessage);
       } catch (e) {
         debugPrint("AI error: $e");
         aiResult = {

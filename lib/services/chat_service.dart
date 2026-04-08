@@ -136,17 +136,18 @@ class ChatService {
         .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      return snapshot.docs
+          .map((doc) {
         final data = Map<String, dynamic>.from(doc.data());
+
         if (data['timestamp'] == null) {
-          data['timestamp'] = Timestamp.now();
+          return null;
         }
 
         if (data['encrypted'] == true && data['text'] != null) {
           try {
             data['text'] = _decrypt(data['text']);
           } catch (_) {
-            // fallback for old encryption
             data['text'] = data['text']
                 .toString()
                 .split('')
@@ -157,14 +158,17 @@ class ChatService {
 
         data['id'] = doc.id;
         return data;
-      }).toList();
+      })
+          .where((e) => e != null)
+          .cast<Map<String, dynamic>>()
+          .toList();
     });
   }
 
   // 4. Fetch messages with pagination
   Future<QuerySnapshot> fetchMessages({
     required String chatId,
-    DocumentSnapshot? lastDocument,
+    Map<String, dynamic>? lastMessage,
     int limit = 20,
   }) async {
     Query query = _firestore
@@ -174,8 +178,8 @@ class ChatService {
         .orderBy('timestamp', descending: false)
         .limit(limit);
 
-    if (lastDocument != null) {
-      query = query.startAfterDocument(lastDocument);
+    if (lastMessage != null && lastMessage['timestamp'] != null) {
+      query = query.startAfter([lastMessage['timestamp']]);
     }
 
     return await query.get();
