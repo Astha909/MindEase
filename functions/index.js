@@ -3,53 +3,62 @@
  */
 
 const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
+const {onCall} = require("firebase-functions/https");
+const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const twilio = require("twilio");
-
-// Load environment variables from .env (DEV ONLY)
-require("dotenv").config();
 
 // Limit max instances (cost control)
 setGlobalOptions({maxInstances: 10});
 
 /**
+ * 🔐 Secret Definitions (NEW)
+ */
+const twilioSid = defineSecret("TWILIO_SID");
+const twilioToken = defineSecret("TWILIO_AUTH_TOKEN");
+const twilioPhone = defineSecret("TWILIO_PHONE");
+
+/**
  * Send Emergency SMS
  */
-exports.sendEmergencySMS = onRequest(async (req, res) => {
-  try {
-    const {phone, message} = req.body;
+exports.sendEmergencySMS = onCall(
+    {secrets: [twilioSid, twilioToken, twilioPhone]},
+    async (request) => {
+      try {
+      // 🔐 Auth Check
+        if (!request.auth) {
+          throw new Error("Unauthenticated");
+        }
 
-    if (!phone || !message) {
-      return res.status(400).json({
-        error: "Phone and message are required.",
-      });
-    }
+        // 📩 Input
+        const {phone, message} = request.data;
 
-    // Initialize Twilio client using .env values
-    const client = twilio(
-        process.env.TWILIO_SID,
-        process.env.TWILIO_AUTH_TOKEN,
-    );
+        if (!phone || !message) {
+          throw new Error("Phone and message are required");
+        }
 
-    // Send SMS
-    const response = await client.messages.create({
-      body: message,
-      from: process.env.TWILIO_PHONE,
-      to: phone,
-    });
+        // 📲 Twilio Client
+        const client = twilio(
+            twilioSid.value(),
+            twilioToken.value(),
+        );
 
-    logger.info("SMS sent successfully", response.sid);
+        // 🚀 Send SMS
+        const response = await client.messages.create({
+          body: message,
+          from: twilioPhone.value(),
+          to: phone,
+        });
 
-    return res.status(200).json({
-      success: true,
-      sid: response.sid,
-    });
-  } catch (error) {
-    logger.error("Error sending SMS", error);
+        logger.info("SMS sent successfully", response.sid);
 
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
-});
+        return {
+          success: true,
+          sid: response.sid,
+        };
+      } catch (error) {
+        logger.error("Error sending SMS", error);
+        throw new Error(error.message);
+      }
+    },
+);
