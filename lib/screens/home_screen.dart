@@ -19,7 +19,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  final HomeController _homeController = HomeController();
+  late final HomeController _homeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeController = HomeController();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,15 +81,31 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-      body: AnimatedBuilder(
-        animation: _homeController,
-        builder: (context, _) {
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _buildCurrentScreen(),
-          );
-        },
+
+      /// 🔥 FIX: SafeArea added
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: _homeController,
+          builder: (context, _) {
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+
+              /// 🔥 FIX: prevents flicker/jump
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  children: [
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                );
+              },
+
+              child: _buildCurrentScreen(),
+            );
+          },
+        ),
       ),
+
       bottomNavigationBar: AnimatedBuilder(
         animation: _homeController,
         builder: (context, _) {
@@ -103,9 +125,13 @@ class _HomeScreenState extends State<HomeScreen>
               borderRadius: BorderRadius.circular(30),
               child: BottomNavigationBar(
                 currentIndex: _homeController.selectedIndex,
+
+                /// 🔥 FIX: prevent unnecessary rebuilds
                 onTap: (index) {
+                  if (index == _homeController.selectedIndex) return;
                   _homeController.changeTab(index);
                 },
+
                 selectedItemColor: const Color(0xFF5D9CEC),
                 unselectedItemColor: Colors.grey,
                 backgroundColor: Colors.white,

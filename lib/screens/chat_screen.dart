@@ -29,7 +29,9 @@ class _ChatScreenState extends State<ChatScreen>
 
   bool _isLoadingMore = false;
   bool _hasMoreMessages = true;
-  dynamic _lastDocument;
+
+  // ✅ Ensure type matches ChatController
+  Map<String, dynamic>? _lastDocument;
 
   late AnimationController _typingController;
 
@@ -49,26 +51,45 @@ class _ChatScreenState extends State<ChatScreen>
   Future<void> _initChat() async {
     final id = await widget.chatController.getOrCreateChat(widget.userId);
 
+    if (!mounted) return;
+
     setState(() {
       _chatId = id;
       _loadingChat = false;
     });
   }
 
+  // ✅ Fixed safe pagination
   void _handleScroll() async {
-    if (_scrollController.position.pixels <= 50 &&
+    if (!_scrollController.hasClients || _chatId == null) return;
+
+    final position = _scrollController.position;
+
+    if (position.pixels >= position.maxScrollExtent - 100 &&
         !_isLoadingMore &&
         _hasMoreMessages &&
-        _chatId != null) {
-      _isLoadingMore = true;
+        _lastDocument != null) {
+      setState(() => _isLoadingMore = true);
 
-      await widget.chatController.fetchMessages(
-        chatId: _chatId!,
-        lastDocument: _lastDocument,
-        limit: 20,
-      );
+      try {
+        final messages = await widget.chatController.fetchMessages(
+          chatId: _chatId!,
+          lastMessage: _lastDocument!,
+          limit: 20,
+        );
 
-      _isLoadingMore = false;
+        if (messages.isNotEmpty) {
+          _lastDocument = messages.last;
+        } else {
+          _hasMoreMessages = false;
+        }
+      } catch (e) {
+        debugPrint("Pagination error: $e");
+      }
+
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
     }
   }
 
@@ -81,53 +102,76 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<bool?> _showEmergencyConfirmation() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Emergency Alert 🚨"),
+        content: const Text(
+          "We detected something serious.\nDo you want to alert your emergency contacts?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              "Confirm",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty || _chatId == null) return;
 
-    setState(() {
-      _showError = false;
-    });
+    final message = text.trim();
+
+    _messageController.clear();
+    setState(() => _showError = false);
 
     try {
-      final keywords = _emergencyController.checkEmergencyKeywords(text);
+      final keywords = _emergencyController.checkEmergencyKeywords(message);
 
       if (keywords.isNotEmpty) {
-        await _emergencyController.triggerEmergency(
-          userId: widget.userId,
-          message: text,
-          keywordsFound: keywords,
-          isConfirmed: true,
-        );
+        final confirm = await _showEmergencyConfirmation();
+
+        if (confirm == true) {
+          await _emergencyController.triggerEmergency(
+            userId: widget.userId,
+            message: message,
+            keywordsFound: keywords,
+            isConfirmed: true,
+          );
+        }
       }
 
       await widget.chatController.handleMessage(
         chatId: _chatId!,
         userId: widget.userId,
-        message: text,
+        message: message,
       );
-
-      _messageController.clear();
     } catch (_) {
-      setState(() {
-        _showError = true;
-      });
+      setState(() => _showError = true);
     }
 
     _scrollToBottom();
   }
 
-  /// MESSAGE OPTIONS
   void _showMessageOptions(Map<String, dynamic> message) {
     showDialog(
       context: context,
@@ -157,7 +201,6 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  /// DELETE CONFIRMATION DIALOG
   void _showDeleteConfirmation(Map<String, dynamic> message) {
     showDialog(
       context: context,
@@ -189,7 +232,6 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  /// EDIT MESSAGE DIALOG
   void _showEditDialog(Map<String, dynamic> message) {
     final controller = TextEditingController(text: message['text']);
 
@@ -247,7 +289,7 @@ class _ChatScreenState extends State<ChatScreen>
                 builder: (context, _) {
                   final isTyping = widget.chatController.isLoading;
 
-                  return StreamBuilder(
+                  return StreamBuilder<List<Map<String, dynamic>>>(
                     stream: widget.chatController.listenToMessages(_chatId!),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
@@ -258,15 +300,25 @@ class _ChatScreenState extends State<ChatScreen>
 
                       final docs = snapshot.data!;
 
+                      // ✅ Initialize last document safely
+                      if (_lastDocument == null && docs.isNotEmpty) {
+                        _lastDocument = docs.last;
+                      }
+
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _scrollToBottom();
+                      });
+
                       return ListView.builder(
                         controller: _scrollController,
+                        reverse: true,
                         padding: const EdgeInsets.all(16),
                         itemCount: docs.length +
                             (isTyping ? 1 : 0) +
                             (_showError ? 1 : 0) +
                             (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          if (_isLoadingMore && index == 0) {
+                          if (_isLoadingMore && index == docs.length) {
                             return const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(8),
@@ -275,16 +327,15 @@ class _ChatScreenState extends State<ChatScreen>
                             );
                           }
 
-                          if (isTyping && index == docs.length) {
+                          if (isTyping && index == 0) {
                             return _buildTypingBubble();
                           }
 
-                          if (_showError &&
-                              index == docs.length + (isTyping ? 1 : 0)) {
+                          if (_showError && index == (isTyping ? 1 : 0)) {
                             return _buildErrorBubble();
                           }
 
-                          final data = docs[index];
+                          final data = docs[docs.length - 1 - index];
                           final isUser = data['sender'] == "user";
 
                           Widget bubble = Align(

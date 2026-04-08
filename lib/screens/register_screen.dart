@@ -8,6 +8,7 @@ class RegisterScreen extends StatefulWidget {
     super.key,
     required this.authController,
   });
+
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -18,8 +19,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _ageFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+
   String? _selectedGender;
   String? _selectedSexuality;
+
+  String? _error;
 
   @override
   void dispose() {
@@ -27,24 +34,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _ageController.dispose();
     _passwordController.dispose();
+    _emailFocus.dispose();
+    _ageFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
+  bool _validate() {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final age = int.tryParse(_ageController.text);
+    final password = _passwordController.text.trim();
+
+    if (name.isEmpty) {
+      _error = "Name is required";
+      return false;
+    }
+
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      _error = "Invalid email";
+      return false;
+    }
+
+    if (age == null || age <= 0) {
+      _error = "Enter valid age";
+      return false;
+    }
+
+    if (password.length < 6) {
+      _error = "Password must be at least 6 characters";
+      return false;
+    }
+
+    _error = null;
+    return true;
+  }
+
   Future<void> _handleRegister() async {
+    if (widget.authController.isLoading) return;
+
+    if (!_validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_error!)),
+      );
+      return;
+    }
+
     final success = await widget.authController.register(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
       name: _nameController.text.trim(),
-      age: int.tryParse(_ageController.text) ?? 0,
+      age: int.parse(_ageController.text),
       gender: _selectedGender ?? "Prefer not to say",
       sexuality: _selectedSexuality,
     );
 
+    if (!mounted) return;
+
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Registration Successful"),
-        ),
+        const SnackBar(content: Text("Registration Successful")),
       );
       Navigator.pop(context);
     } else {
@@ -56,12 +105,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
     }
-
-    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = widget.authController.isLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFFE6FAFA),
       body: SafeArea(
@@ -82,19 +131,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 30),
               TextField(
                 controller: _nameController,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) =>
+                    FocusScope.of(context).requestFocus(_emailFocus),
                 decoration: _inputDecoration('Full Name'),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _emailController,
-                decoration: _inputDecoration('Email'),
+                focusNode: _emailFocus,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) =>
+                    FocusScope.of(context).requestFocus(_ageFocus),
+                decoration: _inputDecoration('Email'),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _ageController,
-                decoration: _inputDecoration('Age'),
+                focusNode: _ageFocus,
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) =>
+                    FocusScope.of(context).requestFocus(_passwordFocus),
+                decoration: _inputDecoration('Age'),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -110,11 +170,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text(e),
                         ))
                     .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedGender = value;
-                  });
-                },
+                onChanged: isLoading
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedGender = value;
+                        });
+                      },
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -132,34 +194,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text(e),
                         ))
                     .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedSexuality = value;
-                  });
-                },
+                onChanged: isLoading
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedSexuality = value;
+                        });
+                      },
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passwordController,
+                focusNode: _passwordFocus,
                 obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  if (!isLoading) _handleRegister();
+                },
                 decoration: _inputDecoration('Password'),
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed:
-                      widget.authController.isLoading ? null : _handleRegister,
-                  child: widget.authController.isLoading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
+                  onPressed: isLoading ? null : _handleRegister,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text('Register'),
                 ),
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: isLoading ? null : () => Navigator.pop(context),
                 child: const Text(
                   'Already have an account? Login',
                   textAlign: TextAlign.center,
