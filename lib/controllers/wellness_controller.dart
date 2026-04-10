@@ -52,8 +52,6 @@ class WellnessController extends ChangeNotifier {
       tips = aiResult["tips"] is List ? aiResult["tips"] : [];
       activity = aiResult["activity"]?.toString() ?? "";
 
-
-
       await _wellnessService.addMoodLog(
         userId: userId,
         mood: mood,
@@ -75,7 +73,6 @@ class WellnessController extends ChangeNotifier {
       return null;
     }
   }
-
 
   Future<void> addMood({
     required String userId,
@@ -101,6 +98,15 @@ class WellnessController extends ChangeNotifier {
       _setError(e.toString());
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// ✅ FIXED: NOW INSIDE CLASS
+  Future<void> deleteLatestMood(String userId) async {
+    try {
+      await _wellnessService.deleteLatestMood(userId);
+    } catch (e) {
+      _setError(e.toString());
     }
   }
 }
