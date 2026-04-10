@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/wellness_service.dart';
+import '../services/local_mood_classifier.dart';
 import '../ai/ai_service.dart';
 import '../ai/cohere_provider.dart';
 
 class WellnessController extends ChangeNotifier {
   final WellnessService _wellnessService = WellnessService();
   final AIService _aiService = AIService(CohereProvider());
+  final LocalMoodClassifier _localClassifier = LocalMoodClassifier();
 
   bool isLoading = false;
   String? errorMessage;
@@ -41,14 +43,18 @@ class WellnessController extends ChangeNotifier {
     _setError(null);
 
     try {
-      final aiResult = await _aiService.getReply("User feels: $moodInput");
+      final localMood = _localClassifier.predict(moodInput);
+
+      final aiResult = await _aiService.getReply(
+          "User feels: $moodInput (detected mood: $localMood)"
+      );
 
       // SAFETY: ensure proper type handling
       String mood = moodInput;
       List<dynamic> tips = [];
       String activity = "";
 
-      mood = aiResult["mood"]?.toString() ?? moodInput;
+      mood = aiResult["mood"]?.toString() ?? localMood;
       tips = aiResult["tips"] is List ? aiResult["tips"] : [];
       activity = aiResult["activity"]?.toString() ?? "";
 

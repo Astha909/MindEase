@@ -1,0 +1,8 @@
+angry
+anxious
+confused
+happy
+neutral
+overwhelmed
+sad
+stressed

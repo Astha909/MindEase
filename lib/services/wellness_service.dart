@@ -146,7 +146,12 @@ class WellnessService {
         "emoji": "💛"
       },
     ];
+    final existing = await _firestore
+        .collection('wellness_tips')
+        .limit(1)
+        .get();
 
+    if (existing.docs.isNotEmpty) return;
     for (final tip in tips) {
       await _firestore.collection('wellness_tips').add({
         ...tip,
@@ -163,6 +168,9 @@ class WellnessService {
     String? note,
     List<dynamic>? tips,
   }) async {
+    if (userId.isEmpty || mood.isEmpty) {
+      throw Exception("Invalid mood log data");
+    }
     await _firestore.collection('mood_logs').add({
       'userId': userId,
       'mood': mood,

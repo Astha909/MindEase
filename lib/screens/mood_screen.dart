@@ -120,6 +120,10 @@ class _MoodScreenState extends State<MoodScreen>
 
     setState(() => _isSaving = true);
 
+    await _controller.addMood(
+      userId: widget.userId,
+      mood: moodLabels[index].toLowerCase(),
+    );
     try {
       await _controller.analyzeManualMood(
         userId: widget.userId,

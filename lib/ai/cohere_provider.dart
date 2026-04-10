@@ -39,6 +39,7 @@ class CohereProvider implements AIProvider {
               - The chat reply must be SHORT (max 1–2 short sentences).
               - Do NOT give long explanations or advice in chat reply.
               - The chat reply should include 1 appropriate emoji when it fits naturally (not too many).
+            
               
               TASK:
               1. Infer the user's current mood from the input (text OR provided mood).

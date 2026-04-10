@@ -3,6 +3,7 @@ import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/services/wellness_service.dart';
+import 'package:mindease/services/local_mood_classifier.dart';
 import '../utils/mood_labels.dart';
 import '../ai/cohere_provider.dart';
 
@@ -11,6 +12,7 @@ class ChatController extends ChangeNotifier {
   final EmergencyController _emergencyController;
   final AIService _aiService;
   final WellnessService _wellnessService;
+  final LocalMoodClassifier _localClassifier = LocalMoodClassifier();
 
   bool isLoading = false;
   String? errorMessage;
@@ -23,7 +25,14 @@ class ChatController extends ChangeNotifier {
   })  : _chatService = chatService ?? ChatService(),
         _emergencyController = emergencyController ?? EmergencyController(),
         _aiService = aiService ?? AIService(CohereProvider()),
-        _wellnessService = wellnessService ?? WellnessService();
+        _wellnessService = wellnessService ?? WellnessService() {
+          _initLocalClassifier();
+        }
+
+  Future<void> _initLocalClassifier() async {
+    await _localClassifier.loadModel();
+  }
+
 
   void _setLoading(bool value) {
     isLoading = value;
@@ -119,10 +128,41 @@ class ChatController extends ChangeNotifier {
 // 🧠 Get structured AI response from Cohere
       Map<String, dynamic> aiResult = {};
 
+      final normalizedMessage = _normalizeMoodWords(message);
+      final localMood = _localClassifier.predict(normalizedMessage);
+      // 🧠 Rule-based pre-decision (classifier integration FIX)
+      const highRiskMoods = ["overwhelmed", "angry", "stressed"];
+
+      if (highRiskMoods.contains(localMood)) {
+        debugPrint("⚠️ High-risk mood detected: $localMood");
+      }
+      // 🚨 Local emergency pre-check before AI
+      final emergencyKeywords = _emergencyController.checkEmergencyKeywords(normalizedMessage);
+
+      if (emergencyKeywords.isNotEmpty) {
+        await _emergencyController.triggerEmergency(
+          userId: userId,
+          message: message,
+          keywordsFound: emergencyKeywords,
+          triggerType: "local_keyword_detection",
+          isConfirmed: true,
+        );
+
+        await _chatService.sendMessage(
+          chatId: chatId,
+          userId: userId,
+          sender: "ai",
+          text: "I’m really concerned about what you shared. You are not alone. "
+              "Please contact local emergency services right now or reach out to a trusted person nearby.",
+        );
+
+        return;
+      }
       try {
-        final normalizedMessage = _normalizeMoodWords(message);
-        aiResult = await _aiService.getReply(normalizedMessage);
-      } catch (e) {
+        aiResult = await _aiService.getReply(
+          "User message: $normalizedMessage\nDetected mood: $localMood",
+        );
+      } catch (e){
         debugPrint("AI error: $e");
         aiResult = {
           "mood": "neutral",
@@ -133,11 +173,28 @@ class ChatController extends ChangeNotifier {
         };
       }
 
-      final mood = aiResult["mood"]?.toString() ?? "neutral";
+      final aiMood = aiResult["mood"]?.toString();
+
+      const priorityLocalMoods = [
+        "sad",
+        "anxious",
+        "stressed",
+        "overwhelmed",
+        "angry",
+        "lonely",
+        "tired"
+      ];
+
+      final mood = (priorityLocalMoods.contains(localMood))
+          ? localMood
+          : ((aiMood != null && MoodLabels.moods.contains(aiMood))
+          ? aiMood
+          : localMood);
       final chatReply = aiResult["chat_reply"]?.toString() ?? "";
       final tips = aiResult["tips"] as List<dynamic>? ?? [];
       final activity = aiResult["activity"]?.toString() ?? "";
       final crisisLevel = aiResult["crisis_level"]?.toString() ?? "none";
+
 
 // 🚨 Severe-only escalation
       if (crisisLevel == "severe") {

@@ -1,12 +1,10 @@
 // ignore_for_file: avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 
 
-// 🔐 TEMP: Enable real SMS only on your device
-const bool useRealSMS = false;
+
 
 class EmergencyService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -45,7 +43,11 @@ class EmergencyService {
 
   // 🔥 CHECK emergency keywords
   List<String> getEmergencyKeywords(String message) {
-    final keywords = [
+    if (message.trim().isEmpty) return [];
+
+    final lowerMessage = message.toLowerCase().trim();
+
+    final directPhrases = [
       'suicide',
       'kill myself',
       'end my life',
@@ -56,14 +58,50 @@ class EmergencyService {
       'no reason to live',
       'jump off',
       'hopeless',
+      'i am dying',
+      'im dying',
+      "i'm dying",
+      'die today',
+      'want to kill myself',
+      'dont want to live',
+      "don't want to live",
+      'i want to disappear',
+      'i cant go on',
+      "i can't go on",
     ];
 
-    final lowerMessage = message.toLowerCase();
     final found = <String>[];
 
-    for (final word in keywords) {
-      if (lowerMessage.contains(word)) {
-        found.add(word);
+    for (final phrase in directPhrases) {
+      if (lowerMessage.contains(phrase)) {
+        found.add(phrase);
+      }
+    }
+
+    final severePatterns = [
+      RegExp(r'\bi\s+am\s+dying\b'),
+      RegExp(r"\bi'?m\s+dying\b"),
+      RegExp(r'\bi\s+want\s+to\s+die\b'),
+      RegExp(r'\bi\s+want\s+to\s+kill\s+myself\b'),
+      RegExp(r'\bi\s+do\s+not\s+want\s+to\s+live\b'),
+      RegExp(r"\bi\s+don't\s+want\s+to\s+live\b"),
+      RegExp(r'\bi\s+cant\s+go\s+on\b'),
+      RegExp(r"\bi\s+can't\s+go\s+on\b"),
+      RegExp(r'\bkill\s+myself\b'),
+      RegExp(r'\bend\s+my\s+life\b'),
+      RegExp(r'\bhurt\s+myself\b'),
+      RegExp(r'\boverdose\b'),
+      RegExp(r'\bcut\s+myself\b'),
+      RegExp(r'\bno\s+reason\s+to\s+live\b'),
+    ];
+
+    for (final pattern in severePatterns) {
+      final match = pattern.firstMatch(lowerMessage);
+      if (match != null) {
+        final matchedText = match.group(0);
+        if (matchedText != null && !found.contains(matchedText)) {
+          found.add(matchedText);
+        }
       }
     }
 
@@ -158,7 +196,7 @@ class EmergencyService {
 
       final formattedPhone = _formatPhoneNumber(phone);
 
-      await _sendMockSMS(
+      await _sendEmergencySMS(
         phone: formattedPhone,
         userMessage: message,
       );
@@ -179,44 +217,24 @@ class EmergencyService {
   }
 
 
-  // 📩 MOCK SMS FUNCTION (Twilio will replace this later)
-  Future<void> _sendMockSMS({
+  Future<void> _sendEmergencySMS({
     required String phone,
     required String userMessage,
   }) async {
-    if (!useRealSMS) {
-      print("🔹 MOCK SMS to $phone");
-      print("Message: $userMessage");
-      await Future.delayed(const Duration(milliseconds: 500));
-      return;
-    }
-
     try {
-      // ⚠️ DEV ONLY: Add your Twilio credentials locally
-      const String accountSid = " ";
-      const String authToken = " ";
-      const String twilioPhone = " ";
+      final callable =
+      FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('sendEmergencySMS');
 
-      final url = Uri.parse(
-          "https://api.twilio.com/2010-04-01/Accounts/$accountSid/Messages.json");
+      await callable.call({
+        "phone": phone,
+        "message":
+        "🚨 Emergency Alert: User may be in crisis.\nMessage: $userMessage",
+      });
 
-      final response = await http.post(
-        url,
-        headers: {
-          "Authorization":
-          "Basic ${base64Encode(utf8.encode('$accountSid:$authToken'))}",
-        },
-        body: {
-          "From": twilioPhone,
-          "To": phone,
-          "Body":
-          "🚨 Emergency Alert: User may be in crisis.\nMessage: $userMessage",
-        },
-      );
-
-      print("Twilio response: ${response.statusCode}");
+      print("✅ SMS sent via Firebase Function");
     } catch (e) {
-      print("SMS error: $e");
+      print("❌ SMS error: $e");
     }
   }
   String _formatPhoneNumber(String phone) {
