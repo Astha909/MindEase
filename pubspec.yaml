@@ -20,7 +20,7 @@ dependencies:
   cloud_functions: ^5.0.0
   google_sign_in: ^6.2.1
   provider: ^6.1.2
-  flutter_litert: ^2.0.11
+  tflite_flutter: ^0.12.1
 
 
 dev_dependencies:
@@ -32,6 +32,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/ml/mood_classifier.tflite
-    - assets/ml/labels.txt
-    - assets/ml/tokenizer.json
+    - assets/model/mindease_classifier_v1.tflite
+    - assets/model/tokenizer.pkl
+    - assets/model/label_encoder.pkl
+    - assets/model/tokenizer_config.json
+    - assets/model/labels.json

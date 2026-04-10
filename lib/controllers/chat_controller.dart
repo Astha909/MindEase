@@ -3,7 +3,7 @@ import 'package:mindease/services/chat_service.dart';
 import 'package:mindease/controllers/emergency_controller.dart';
 import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/services/wellness_service.dart';
-import 'package:mindease/services/local_mood_classifier.dart';
+import 'package:mindease/services/mood_classifier.dart';
 import '../utils/mood_labels.dart';
 import '../ai/cohere_provider.dart';
 
@@ -12,7 +12,7 @@ class ChatController extends ChangeNotifier {
   final EmergencyController _emergencyController;
   final AIService _aiService;
   final WellnessService _wellnessService;
-  final LocalMoodClassifier _localClassifier = LocalMoodClassifier();
+  final MoodClassifier _localClassifier = MoodClassifier();
 
   bool isLoading = false;
   String? errorMessage;

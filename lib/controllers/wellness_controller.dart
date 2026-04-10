@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import '../services/wellness_service.dart';
-import '../services/local_mood_classifier.dart';
+import '../services/mood_classifier.dart';
 import '../ai/ai_service.dart';
 import '../ai/cohere_provider.dart';
 
 class WellnessController extends ChangeNotifier {
   final WellnessService _wellnessService = WellnessService();
   final AIService _aiService = AIService(CohereProvider());
-  final LocalMoodClassifier _localClassifier = LocalMoodClassifier();
+  final MoodClassifier _localClassifier = MoodClassifier();
+  WellnessController() {
+    _initLocalClassifier();
+  }
+  Future<void> _initLocalClassifier() async {
+    await _localClassifier.loadModel();
+  }
 
   bool isLoading = false;
   String? errorMessage;
