@@ -5,7 +5,7 @@ import 'package:mindease/ai/ai_service.dart';
 import 'package:mindease/services/wellness_service.dart';
 import 'package:mindease/services/mood_classifier.dart';
 import '../utils/mood_labels.dart';
-import '../ai/cohere_provider.dart';
+import '../ai/gemini_provider.dart';
 
 class ChatController extends ChangeNotifier {
   final ChatService _chatService;
@@ -24,7 +24,7 @@ class ChatController extends ChangeNotifier {
     WellnessService? wellnessService,
   })  : _chatService = chatService ?? ChatService(),
         _emergencyController = emergencyController ?? EmergencyController(),
-        _aiService = aiService ?? AIService(CohereProvider()),
+        _aiService = aiService ?? AIService(GeminiProvider()),
         _wellnessService = wellnessService ?? WellnessService() {
           _initLocalClassifier();
         }
@@ -117,7 +117,12 @@ class ChatController extends ChangeNotifier {
     _setError(null);
 
     try {
-      // Save user message
+
+      // Fetch prior conversation BEFORE saving current turn
+      final history =
+      await _chatService.getRecentConversation(chatId);
+
+      // Save current user message
       await _chatService.sendMessage(
         chatId: chatId,
         userId: userId,
@@ -125,8 +130,8 @@ class ChatController extends ChangeNotifier {
         text: message,
       );
 
-// 🧠 Get structured AI response from Cohere
       Map<String, dynamic> aiResult = {};
+
 
       final normalizedMessage = _normalizeMoodWords(message);
       final localMood = _localClassifier.predict(normalizedMessage);
@@ -159,9 +164,18 @@ class ChatController extends ChangeNotifier {
         return;
       }
       try {
-        aiResult = await _aiService.getReply(
-          "User message: $normalizedMessage\nDetected mood: $localMood",
-        );
+
+        final memoryPrompt = """
+        Recent conversation:
+        ${history.join('\n')}
+        
+        Current user message:
+        $normalizedMessage
+        
+        Detected mood:
+        $localMood
+        """;
+        aiResult = await _aiService.getReply(memoryPrompt);
       } catch (e){
         debugPrint("AI error: $e");
         aiResult = {
@@ -254,6 +268,9 @@ class ChatController extends ChangeNotifier {
         userId: userId,
         sender: "ai",
         text: finalReply,
+        sentiment: mood,
+        isCrisis: crisisLevel == "severe",
+        crisisLevel: crisisLevel,
       );
     } catch (e) {
       _setError("Failed to process message");

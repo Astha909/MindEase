@@ -57,7 +57,7 @@ class EmergencyService {
       'cutting',
       'no reason to live',
       'jump off',
-      'hopeless',
+      'there is no reason to live',
       'i am dying',
       'im dying',
       "i'm dying",
@@ -93,6 +93,7 @@ class EmergencyService {
       RegExp(r'\boverdose\b'),
       RegExp(r'\bcut\s+myself\b'),
       RegExp(r'\bno\s+reason\s+to\s+live\b'),
+      RegExp(r'\bthere\s+is\s+no\s+reason\s+to\s+live\b'),
     ];
 
     for (final pattern in severePatterns) {

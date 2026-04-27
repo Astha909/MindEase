@@ -50,6 +50,9 @@ class ChatService {
     required String userId,
     required String sender,
     required String text,
+    String? sentiment,
+    bool isCrisis = false,
+    String crisisLevel = "none",
   }) async {
     final messageRef = _firestore
         .collection('chats')
@@ -62,6 +65,9 @@ class ChatService {
       'text': _encrypt(text),
       'encrypted': true,
       'timestamp': FieldValue.serverTimestamp(),
+      'sentiment': sentiment,
+      'isCrisis': isCrisis,
+      'crisisLevel': crisisLevel,
     });
 
     await _firestore.collection('chats').doc(chatId).update({
@@ -183,5 +189,35 @@ class ChatService {
     }
 
     return await query.get();
+  }
+
+  Future<List<String>> getRecentConversation(
+      String chatId, {
+        int limit = 5,
+      }) async {
+
+    final snapshot = await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+
+    final messages = snapshot.docs.reversed.map((doc) {
+      final data = doc.data();
+
+      String text = data['text'] ?? '';
+
+      if (data['encrypted'] == true) {
+        text = _decrypt(text);
+      }
+
+      final sender = data['sender'] ?? 'user';
+
+      return "$sender: $text";
+    }).toList();
+
+    return messages;
   }
 }

@@ -63,6 +63,10 @@ class MoodClassifier {
       }
     }
 
+    if (maxValue < 0.60) {
+      return "neutral";
+    }
+
     return labels[maxIndex];
   }
 }
