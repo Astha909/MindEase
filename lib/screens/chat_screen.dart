@@ -30,10 +30,12 @@ class _ChatScreenState extends State<ChatScreen>
   bool _isLoadingMore = false;
   bool _hasMoreMessages = true;
 
-  // ✅ Ensure type matches ChatController
   Map<String, dynamic>? _lastDocument;
 
   late AnimationController _typingController;
+
+  // ✅ NEW: send button animation
+  bool _pressed = false;
 
   @override
   void initState() {
@@ -59,7 +61,6 @@ class _ChatScreenState extends State<ChatScreen>
     });
   }
 
-  // ✅ Fixed safe pagination
   void _handleScroll() async {
     if (!_scrollController.hasClients || _chatId == null) return;
 
@@ -279,7 +280,7 @@ class _ChatScreenState extends State<ChatScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Chat with AI")),
+      appBar: AppBar(title: const Text("Chat with Chhotu 🤖")),
       body: SafeArea(
         child: Column(
           children: [
@@ -300,7 +301,6 @@ class _ChatScreenState extends State<ChatScreen>
 
                       final docs = snapshot.data!;
 
-                      // ✅ Initialize last document safely
                       if (_lastDocument == null && docs.isNotEmpty) {
                         _lastDocument = docs.last;
                       }
@@ -338,35 +338,50 @@ class _ChatScreenState extends State<ChatScreen>
                           final data = docs[docs.length - 1 - index];
                           final isUser = data['sender'] == "user";
 
-                          Widget bubble = Align(
-                            alignment: isUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
-                              constraints: const BoxConstraints(maxWidth: 250),
-                              decoration: BoxDecoration(
-                                gradient: isUser
-                                    ? const LinearGradient(
-                                        colors: [
-                                          Color(0xff4facfe),
-                                          Color(0xff00f2fe)
-                                        ],
-                                      )
-                                    : const LinearGradient(
-                                        colors: [
-                                          Color(0xffe0e0e0),
-                                          Color(0xffcfcfcf)
-                                        ],
-                                      ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                data['text'] ?? '',
-                                style: TextStyle(
-                                  color: isUser ? Colors.white : Colors.black87,
+                          Widget bubble = TweenAnimationBuilder(
+                            duration: const Duration(milliseconds: 250),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            builder: (context, value, child) {
+                              return Transform.translate(
+                                offset: Offset(0, 10 * (1 - value)),
+                                child: Opacity(
+                                  opacity: value,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Align(
+                              alignment: isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                constraints:
+                                    const BoxConstraints(maxWidth: 250),
+                                decoration: BoxDecoration(
+                                  gradient: isUser
+                                      ? const LinearGradient(
+                                          colors: [
+                                            Color(0xff4facfe),
+                                            Color(0xff00f2fe)
+                                          ],
+                                        )
+                                      : const LinearGradient(
+                                          colors: [
+                                            Color(0xffe0e0e0),
+                                            Color(0xffcfcfcf)
+                                          ],
+                                        ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  data['text'] ?? '',
+                                  style: TextStyle(
+                                    color:
+                                        isUser ? Colors.white : Colors.black87,
+                                  ),
                                 ),
                               ),
                             ),
@@ -405,12 +420,19 @@ class _ChatScreenState extends State<ChatScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: Colors.blueAccent,
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () => _sendMessage(
-                        _messageController.text.trim(),
+                  GestureDetector(
+                    onTapDown: (_) => setState(() => _pressed = true),
+                    onTapUp: (_) => setState(() => _pressed = false),
+                    onTapCancel: () => setState(() => _pressed = false),
+                    onTap: () => _sendMessage(
+                      _messageController.text.trim(),
+                    ),
+                    child: AnimatedScale(
+                      scale: _pressed ? 0.9 : 1,
+                      duration: const Duration(milliseconds: 100),
+                      child: const CircleAvatar(
+                        backgroundColor: Colors.blueAccent,
+                        child: Icon(Icons.send, color: Colors.white),
                       ),
                     ),
                   ),
@@ -436,7 +458,7 @@ class _ChatScreenState extends State<ChatScreen>
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Text(
-            "AI is typing...",
+            "Chhotu is typing...",
             style: TextStyle(fontStyle: FontStyle.italic),
           ),
         ),

@@ -29,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Color(0xFFE6FAFA),
       body: Center(
         child: Text(
-          'MindEase',
+          'Chhotu AI',
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w600,

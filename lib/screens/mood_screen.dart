@@ -17,58 +17,47 @@ class MoodScreen extends StatefulWidget {
   State<MoodScreen> createState() => _MoodScreenState();
 }
 
-class _MoodScreenState extends State<MoodScreen>
-    with SingleTickerProviderStateMixin {
+class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
   late final WellnessController _controller;
 
-  double _moodValue = 5;
-  late AnimationController _animationController;
+  int _selectedIndex = 0;
+  double _intensity = 5;
 
   List<dynamic> _tips = [];
+  String? _lastMood;
 
   bool _isSaving = false;
-  bool _showSaved = false;
+
+  final TextEditingController _manualController = TextEditingController();
 
   StreamSubscription? _moodSubscription;
-  Timer? _debounce;
 
-  String? _lastSavedMood;
-
-  final List<String> moodLabels = [
-    "Angry",
-    "Upset",
-    "Neutral",
+  final List<String> moods = [
     "Happy",
-    "Excited"
+    "Sad",
+    "Disgusted",
+    "Angry",
+    "Fearful",
+    "Bad",
+    "Surprised"
   ];
+
+  final List<String> emojis = ["😄", "😢", "🤢", "😡", "😨", "😞", "😲"];
 
   final List<Color> moodColors = [
-    Colors.redAccent,
+    Colors.green,
+    Colors.blue,
+    Colors.purple,
+    Colors.red,
     Colors.orange,
-    Colors.yellow,
-    Colors.lightGreen,
-    Colors.greenAccent
-  ];
-
-  final List<String> moodEmojis = [
-    "😡",
-    "😟",
-    "😐",
-    "🙂",
-    "🤩",
+    Colors.grey,
+    Colors.amber,
   ];
 
   @override
   void initState() {
     super.initState();
-
     _controller = widget.wellnessController;
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-
     _listenToLatestMood();
   }
 
@@ -81,71 +70,45 @@ class _MoodScreenState extends State<MoodScreen>
         final data = snapshot.docs.first.data() as Map<String, dynamic>;
 
         setState(() {
-          _tips = (data["tips"] is List) ? data["tips"] : [];
+          _tips = data["tips"] ?? [];
+          _lastMood = data["mood"];
         });
       }
     });
   }
 
-  int _getMoodIndex(double value) {
-    if (value <= 2) return 0;
-    if (value <= 4) return 1;
-    if (value <= 6) return 2;
-    if (value <= 8) return 3;
-    return 4;
-  }
-
-  String _getMoodMessage(int index) {
-    switch (index) {
-      case 0:
-        return "Take it easy 💛";
-      case 1:
-        return "You got this 🌱";
-      case 2:
-        return "Steady vibes ✨";
-      case 3:
-        return "Nice! Keep it up 😄";
-      case 4:
-        return "Energy level 100 🚀";
-      default:
-        return "";
-    }
-  }
-
-  Future<void> _saveMood() async {
-    final index = _getMoodIndex(_moodValue);
-
-    if (_lastSavedMood == moodLabels[index]) return;
+  Future<void> _saveMood(String mood) async {
     if (_isSaving) return;
 
     setState(() => _isSaving = true);
 
-    await _controller.addMood(
-      userId: widget.userId,
-      mood: moodLabels[index].toLowerCase(),
-    );
     try {
       await _controller.analyzeManualMood(
         userId: widget.userId,
-        moodInput: moodLabels[index],
+        moodInput: mood,
       );
 
-      _lastSavedMood = moodLabels[index];
-
-      setState(() => _showSaved = true);
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Mood saved successfully")),
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text("$mood saved"),
+          action: SnackBarAction(
+            label: "UNDO",
+            onPressed: () {
+              _controller.deleteLatestMood(widget.userId);
+            },
+          ),
+        ),
       );
-
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() => _showSaved = false);
-        }
-      });
     } catch (_) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Something went wrong")),
+        const SnackBar(
+          content: Text("Something went wrong"),
+        ),
       );
     } finally {
       if (mounted) {
@@ -154,219 +117,379 @@ class _MoodScreenState extends State<MoodScreen>
     }
   }
 
-  void _onSliderEnd() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _saveMood);
+  void _handleMoodTap(Offset localPos) {
+    final center = const Offset(140, 140);
+
+    final angle = atan2(
+      localPos.dy - center.dy,
+      localPos.dx - center.dx,
+    );
+
+    int index = ((angle + pi) / (2 * pi / moods.length)).floor();
+
+    if (index < 0) index = 0;
+    if (index >= moods.length) index = moods.length - 1;
+
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
-  Future<void> _undoMood() async {
-    await _controller.deleteLatestMood(widget.userId);
+  void _saveSelectedMood() {
+    final mood = "${moods[_selectedIndex]} (${_intensity.toInt()}/10)";
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Last mood removed")),
-    );
+    _saveMood(mood);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _moodSubscription?.cancel();
-    _debounce?.cancel();
+    _manualController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final index = _getMoodIndex(_moodValue);
+    final selectedColor = moodColors[_selectedIndex];
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xffF5F7FB),
       body: SafeArea(
         child: Stack(
           children: [
             SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 10),
 
                   const Text(
                     "Mood Meter",
-                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 30,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
-                  /// MAIN CARD
+                  Text(
+                    "Track how you feel today",
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  /// LAST MOOD
+                  if (_lastMood != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.history),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "Last mood: $_lastMood",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 25),
+
+                  /// PIZZA MOOD
                   Container(
-                    padding: const EdgeInsets.all(25),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.purple.shade50,
-                          Colors.blue.shade50,
+                          Colors.white,
+                          selectedColor.withOpacity(0.08),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(32),
                     ),
                     child: Column(
                       children: [
-                        /// Emoji
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: Text(
-                            moodEmojis[index],
-                            key: ValueKey(index),
-                            style: const TextStyle(fontSize: 70),
-                          ),
-                        ),
+                        GestureDetector(
+                          onTapUp: (details) {
+                            final box = context.findRenderObject() as RenderBox;
 
-                        const SizedBox(height: 10),
+                            final localPos = box.globalToLocal(
+                              details.globalPosition,
+                            );
 
-                        /// Mood Label
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: Text(
-                            moodLabels[index],
-                            key: ValueKey(index),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        /// Fun Message
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: Text(
-                            _getMoodMessage(index),
-                            key: ValueKey(index),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        /// Circle
-                        SizedBox(
-                          height: 200,
-                          width: 200,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CustomPaint(
-                                size: const Size(200, 200),
-                                painter: CircularMoodPainter(_moodValue),
+                            _handleMoodTap(localPos);
+                          },
+                          child: SizedBox(
+                            height: 280,
+                            width: 280,
+                            child: CustomPaint(
+                              painter: PizzaPainter(
+                                selectedIndex: _selectedIndex,
+                                moodColors: moodColors,
+                                moods: moods,
                               ),
-                              Text(
-                                "${_moodValue.toInt()}/10",
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
+                              child: Center(
+                                child: AnimatedScale(
+                                  scale: 1.1,
+                                  duration: const Duration(milliseconds: 250),
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 250),
+                                    child: Text(
+                                      emojis[_selectedIndex],
+                                      key: ValueKey(_selectedIndex),
+                                      style: const TextStyle(
+                                        fontSize: 58,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: Text(
+                            moods[_selectedIndex],
+                            key: ValueKey(moods[_selectedIndex]),
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: selectedColor,
+                            ),
                           ),
                         ),
 
                         const SizedBox(height: 25),
 
-                        /// Slider
-                        SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: moodColors[index],
-                            thumbColor: moodColors[index],
-                          ),
-                          child: Slider(
-                            value: _moodValue,
-                            min: 0,
-                            max: 10,
-                            divisions: 10,
-                            onChanged: (value) {
-                              setState(() {
-                                _moodValue = value;
-                              });
-                            },
-                            onChangeEnd: (_) => _onSliderEnd(),
-                          ),
+                        /// INTENSITY
+                        Column(
+                          children: [
+                            Text(
+                              "Intensity ${_intensity.toInt()}/10",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: selectedColor,
+                                thumbColor: selectedColor,
+                              ),
+                              child: Slider(
+                                value: _intensity,
+                                min: 1,
+                                max: 10,
+                                divisions: 9,
+                                onChanged: (v) {
+                                  setState(() {
+                                    _intensity = v;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
                         ),
 
-                        if (_showSaved)
-                          const Text(
-                            "✓ Mood saved",
-                            style: TextStyle(color: Colors.green),
+                        const SizedBox(height: 10),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: selectedColor,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            onPressed: _saveSelectedMood,
+                            child: const Text(
+                              "Save Mood",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
+                        ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 30),
 
-                  /// Undo
-                  TextButton(
-                    onPressed: _undoMood,
-                    child: const Text("Undo last mood"),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  /// Wellness Tips
+                  /// MANUAL MOOD
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 158, 212, 228),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.edit_rounded),
+                            SizedBox(width: 10),
+                            Text(
+                              "Describe Your Mood",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        TextField(
+                          controller: _manualController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: "Write what you're feeling...",
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (_manualController.text.trim().isEmpty) {
+                                return;
+                              }
+
+                              _saveMood(
+                                _manualController.text.trim(),
+                              );
+
+                              _manualController.clear();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: const Text(
+                              "Analyze Mood",
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  /// WELLNESS TIPS
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.lightBlue.shade100,
+                          Colors.purple.shade100,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Wellness",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        const Row(
+                          children: [
+                            Icon(Icons.lightbulb),
+                            SizedBox(width: 10),
+                            Text(
+                              "Wellness Tips",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 15),
+                        const SizedBox(height: 18),
                         _tips.isEmpty
                             ? const Text(
-                                "Log your mood to see tips 💡",
-                                style: TextStyle(color: Colors.grey),
+                                "Log a mood to receive wellness guidance 💡",
                               )
                             : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: _tips
-                                    .map((tip) => Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 8),
-                                          child: Text("• $tip"),
-                                        ))
+                                    .map(
+                                      (tip) => Container(
+                                        width: double.infinity,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: Text(
+                                          "• $tip",
+                                          style: const TextStyle(
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                    )
                                     .toList(),
                               ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
-
-            /// Loading
             if (_isSaving)
               Container(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withOpacity(0.15),
                 child: const Center(
                   child: CircularProgressIndicator(),
                 ),
@@ -378,41 +501,53 @@ class _MoodScreenState extends State<MoodScreen>
   }
 }
 
-class CircularMoodPainter extends CustomPainter {
-  final double value;
-  CircularMoodPainter(this.value);
+class PizzaPainter extends CustomPainter {
+  final int selectedIndex;
+  final List<String> moods;
+  final List<Color> moodColors;
+
+  PizzaPainter({
+    required this.selectedIndex,
+    required this.moods,
+    required this.moodColors,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    double strokeWidth = 15;
-    double radius = (size.width - strokeWidth) / 2;
-    Offset center = Offset(size.width / 2, size.height / 2);
+    final center = size.center(Offset.zero);
 
-    Paint background = Paint()
-      ..color = Colors.grey.shade200
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
+    final radius = size.width / 2;
 
-    Paint foreground = Paint()
-      ..shader = const SweepGradient(
-        colors: [Colors.green, Colors.yellow, Colors.orange, Colors.red],
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
+    final sweep = 2 * pi / moods.length;
 
-    canvas.drawCircle(center, radius, background);
+    for (int i = 0; i < moods.length; i++) {
+      final paint = Paint()
+        ..color = i == selectedIndex
+            ? moodColors[i]
+            : moodColors[i].withOpacity(0.35);
 
-    double angle = 2 * pi * (value / 10);
+      canvas.drawArc(
+        Rect.fromCircle(
+          center: center,
+          radius: radius,
+        ),
+        i * sweep,
+        sweep,
+        true,
+        paint,
+      );
+    }
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -pi / 2,
-      angle,
-      false,
-      foreground,
+    /// INNER CIRCLE
+    canvas.drawCircle(
+      center,
+      55,
+      Paint()..color = Colors.white,
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
 }
