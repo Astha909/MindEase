@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/emergency_controller.dart';
 
+import '../widgets/chat_bubble.dart';
+import '../widgets/ai_typing_loader.dart';
+import '../widgets/chat_error_bubble.dart';
+
 class ChatScreen extends StatefulWidget {
   final ChatController chatController;
   final String userId;
@@ -21,9 +25,11 @@ class _ChatScreenState extends State<ChatScreen>
   final EmergencyController _emergencyController = EmergencyController();
 
   final TextEditingController _messageController = TextEditingController();
+
   final ScrollController _scrollController = ScrollController();
 
   String? _chatId;
+
   bool _loadingChat = true;
   bool _showError = false;
 
@@ -32,21 +38,14 @@ class _ChatScreenState extends State<ChatScreen>
 
   Map<String, dynamic>? _lastDocument;
 
-  late AnimationController _typingController;
-
-  // ✅ NEW: send button animation
   bool _pressed = false;
 
   @override
   void initState() {
     super.initState();
 
-    _typingController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat();
-
     _initChat();
+
     _scrollController.addListener(_handleScroll);
   }
 
@@ -62,7 +61,9 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   void _handleScroll() async {
-    if (!_scrollController.hasClients || _chatId == null) return;
+    if (!_scrollController.hasClients || _chatId == null) {
+      return;
+    }
 
     final position = _scrollController.position;
 
@@ -94,22 +95,45 @@ class _ChatScreenState extends State<ChatScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    _typingController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0.0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
+  Future<void> _sendMessage(String text) async {
+    if (text.trim().isEmpty || _chatId == null) {
+      return;
     }
+
+    final message = text.trim();
+
+    _messageController.clear();
+
+    setState(() => _showError = false);
+
+    try {
+      final keywords = _emergencyController.checkEmergencyKeywords(message);
+
+      if (keywords.isNotEmpty) {
+        final confirm = await _showEmergencyConfirmation();
+
+        if (confirm == true) {
+          await _emergencyController.triggerEmergency(
+            userId: widget.userId,
+            message: message,
+            keywordsFound: keywords,
+            isConfirmed: true,
+          );
+        }
+      }
+
+      await widget.chatController.handleMessage(
+        chatId: _chatId!,
+        userId: widget.userId,
+        message: message,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _showError = true);
+      }
+    }
+
+    _scrollToBottom();
   }
 
   Future<bool?> _showEmergencyConfirmation() {
@@ -137,43 +161,9 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  Future<void> _sendMessage(String text) async {
-    if (text.trim().isEmpty || _chatId == null) return;
-
-    final message = text.trim();
-
-    _messageController.clear();
-    setState(() => _showError = false);
-
-    try {
-      final keywords = _emergencyController.checkEmergencyKeywords(message);
-
-      if (keywords.isNotEmpty) {
-        final confirm = await _showEmergencyConfirmation();
-
-        if (confirm == true) {
-          await _emergencyController.triggerEmergency(
-            userId: widget.userId,
-            message: message,
-            keywordsFound: keywords,
-            isConfirmed: true,
-          );
-        }
-      }
-
-      await widget.chatController.handleMessage(
-        chatId: _chatId!,
-        userId: widget.userId,
-        message: message,
-      );
-    } catch (_) {
-      setState(() => _showError = true);
-    }
-
-    _scrollToBottom();
-  }
-
-  void _showMessageOptions(Map<String, dynamic> message) {
+  void _showMessageOptions(
+    Map<String, dynamic> message,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -182,6 +172,7 @@ class _ChatScreenState extends State<ChatScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+
               _showEditDialog(message);
             },
             child: const Text("Edit"),
@@ -189,6 +180,7 @@ class _ChatScreenState extends State<ChatScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+
               _showDeleteConfirmation(message);
             },
             child: const Text("Delete"),
@@ -202,12 +194,16 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  void _showDeleteConfirmation(Map<String, dynamic> message) {
+  void _showDeleteConfirmation(
+    Map<String, dynamic> message,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Message"),
-        content: const Text("Are you sure you want to delete this message?"),
+        content: const Text(
+          "Are you sure you want to delete this message?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -233,8 +229,12 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  void _showEditDialog(Map<String, dynamic> message) {
-    final controller = TextEditingController(text: message['text']);
+  void _showEditDialog(
+    Map<String, dynamic> message,
+  ) {
+    final controller = TextEditingController(
+      text: message['text'],
+    );
 
     showDialog(
       context: context,
@@ -262,7 +262,9 @@ class _ChatScreenState extends State<ChatScreen>
                 );
               }
 
-              Navigator.pop(context);
+              if (mounted) {
+                Navigator.pop(context);
+              }
             },
             child: const Text("Save"),
           ),
@@ -271,16 +273,38 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loadingChat) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Chat with Chhotu 🤖")),
+      appBar: AppBar(
+        title: const Text("Chat with Chhotu 🤖"),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -318,6 +342,7 @@ class _ChatScreenState extends State<ChatScreen>
                             (_showError ? 1 : 0) +
                             (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          /// PAGINATION LOADER
                           if (_isLoadingMore && index == docs.length) {
                             return const Center(
                               child: Padding(
@@ -327,74 +352,52 @@ class _ChatScreenState extends State<ChatScreen>
                             );
                           }
 
+                          /// AI TYPING
                           if (isTyping && index == 0) {
-                            return _buildTypingBubble();
+                            return const AITypingLoader();
                           }
 
+                          /// ERROR BUBBLE
                           if (_showError && index == (isTyping ? 1 : 0)) {
-                            return _buildErrorBubble();
-                          }
-
-                          final data = docs[docs.length - 1 - index];
-                          final isUser = data['sender'] == "user";
-
-                          Widget bubble = TweenAnimationBuilder(
-                            duration: const Duration(milliseconds: 250),
-                            tween: Tween(begin: 0.0, end: 1.0),
-                            builder: (context, value, child) {
-                              return Transform.translate(
-                                offset: Offset(0, 10 * (1 - value)),
-                                child: Opacity(
-                                  opacity: value,
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: Align(
-                              alignment: isUser
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 6),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 10),
-                                constraints:
-                                    const BoxConstraints(maxWidth: 250),
-                                decoration: BoxDecoration(
-                                  gradient: isUser
-                                      ? const LinearGradient(
-                                          colors: [
-                                            Color(0xff4facfe),
-                                            Color(0xff00f2fe)
-                                          ],
-                                        )
-                                      : const LinearGradient(
-                                          colors: [
-                                            Color(0xffe0e0e0),
-                                            Color(0xffcfcfcf)
-                                          ],
-                                        ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  data['text'] ?? '',
-                                  style: TextStyle(
-                                    color:
-                                        isUser ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-
-                          if (isUser) {
-                            bubble = GestureDetector(
-                              onLongPress: () => _showMessageOptions(data),
-                              child: bubble,
+                            return ChatErrorBubble(
+                              onRetry: () {
+                                setState(() {
+                                  _showError = false;
+                                });
+                              },
                             );
                           }
 
-                          return bubble;
+                          /// FIXED INDEX
+                          int adjustedIndex = index;
+
+                          if (isTyping) {
+                            adjustedIndex--;
+                          }
+
+                          if (_showError) {
+                            adjustedIndex--;
+                          }
+
+                          if (_isLoadingMore) {
+                            adjustedIndex--;
+                          }
+
+                          if (adjustedIndex < 0 ||
+                              adjustedIndex >= docs.length) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final data = docs[docs.length - 1 - adjustedIndex];
+
+                          final isUser = data['sender'] == "user";
+
+                          return ChatBubble(
+                            isUser: isUser,
+                            text: data['text'] ?? '',
+                            onLongPress:
+                                isUser ? () => _showMessageOptions(data) : null,
+                          );
                         },
                       );
                     },
@@ -403,7 +406,10 @@ class _ChatScreenState extends State<ChatScreen>
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
               color: const Color.fromARGB(255, 234, 237, 238),
               child: Row(
                 children: [
@@ -413,26 +419,49 @@ class _ChatScreenState extends State<ChatScreen>
                       decoration: const InputDecoration(
                         hintText: "Type a message...",
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(30)),
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(30),
+                          ),
                         ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTapDown: (_) => setState(() => _pressed = true),
-                    onTapUp: (_) => setState(() => _pressed = false),
-                    onTapCancel: () => setState(() => _pressed = false),
-                    onTap: () => _sendMessage(
-                      _messageController.text.trim(),
-                    ),
+                    onTapDown: (_) {
+                      setState(() {
+                        _pressed = true;
+                      });
+                    },
+                    onTapUp: (_) {
+                      setState(() {
+                        _pressed = false;
+                      });
+                    },
+                    onTapCancel: () {
+                      setState(() {
+                        _pressed = false;
+                      });
+                    },
+                    onTap: () {
+                      _sendMessage(
+                        _messageController.text.trim(),
+                      );
+                    },
                     child: AnimatedScale(
                       scale: _pressed ? 0.9 : 1,
-                      duration: const Duration(milliseconds: 100),
+                      duration: const Duration(
+                        milliseconds: 100,
+                      ),
                       child: const CircleAvatar(
                         backgroundColor: Colors.blueAccent,
-                        child: Icon(Icons.send, color: Colors.white),
+                        child: Icon(
+                          Icons.send,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -440,45 +469,6 @@ class _ChatScreenState extends State<ChatScreen>
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypingBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FadeTransition(
-        opacity: _typingController,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Text(
-            "Chhotu is typing...",
-            style: TextStyle(fontStyle: FontStyle.italic),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.red.shade100,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Text(
-          "Something went wrong 😔",
-          style: TextStyle(color: Colors.red),
         ),
       ),
     );
