@@ -179,35 +179,25 @@ class ChatController extends ChangeNotifier {
       } catch (e){
         debugPrint("AI error: $e");
         aiResult = {
-          "mood": "neutral",
           "chat_reply": "I'm here with you. Tell me more.",
-          "tips": [],
-          "activity": "",
           "crisis_level": "none"
         };
       }
 
-      final aiMood = aiResult["mood"]?.toString();
+      final mood = localMood;
 
-      const priorityLocalMoods = [
-        "sad",
-        "anxious",
-        "stressed",
-        "overwhelmed",
-        "angry",
-        "lonely",
-        "tired"
-      ];
+      final chatReply =
+          aiResult["chat_reply"]?.toString() ?? "";
 
-      final mood = (priorityLocalMoods.contains(localMood))
-          ? localMood
-          : ((aiMood != null && MoodLabels.moods.contains(aiMood))
-          ? aiMood
-          : localMood);
-      final chatReply = aiResult["chat_reply"]?.toString() ?? "";
-      final tips = aiResult["tips"] as List<dynamic>? ?? [];
-      final activity = aiResult["activity"]?.toString() ?? "";
-      final crisisLevel = aiResult["crisis_level"]?.toString() ?? "none";
+      final crisisLevel =
+          aiResult["crisis_level"]?.toString() ?? "none";
+
+// 📚 Tips & activities from WellnessService
+      final tips =
+      await _wellnessService.getTipsForMood(mood);
+
+      final activity =
+      await _wellnessService.getActivityForMood(mood);
 
 
 // 🚨 Severe-only escalation

@@ -225,4 +225,64 @@ class WellnessService {
     return snapshot.docs.first.data()['mood'];
   }
 
+  // GET tips based on mood
+  Future<List<dynamic>> getTipsForMood(String mood) async {
+
+    final snapshot = await _firestore
+        .collection('wellness_tips')
+        .limit(5)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return [];
+    }
+
+    // Simple mapping based on mood keywords
+    final moodMap = {
+      "sad": ["support", "self-care", "mindset"],
+      "anxious": ["anxiety", "mindfulness", "relaxation"],
+      "stressed": ["stress", "relaxation", "physical"],
+      "overwhelmed": ["productivity", "mindfulness", "support"],
+      "angry": ["reflection", "relaxation"],
+      "lonely": ["support", "self-care"],
+      "tired": ["sleep", "health"],
+    };
+
+    final allowedCategories =
+        moodMap[mood] ?? ["mindset"];
+
+    final filteredTips = snapshot.docs.where((doc) {
+
+      final data = doc.data();
+
+      return allowedCategories.contains(
+        data["category"],
+      );
+    }).toList();
+
+    return filteredTips.map((doc) {
+
+      final data = doc.data();
+
+      return "${data["emoji"]} ${data["content"]}";
+    }).toList();
+  }
+
+  // GET activity suggestion based on mood
+  Future<String> getActivityForMood(String mood) async {
+
+    final activities = {
+      "sad": "Take a short walk outside.",
+      "anxious": "Try a 5-minute breathing exercise.",
+      "stressed": "Stretch your body and relax your shoulders.",
+      "overwhelmed": "Break tasks into smaller steps.",
+      "angry": "Pause and take deep breaths.",
+      "lonely": "Reach out to someone you trust.",
+      "tired": "Take proper rest and hydrate yourself.",
+    };
+
+    return activities[mood] ??
+        "Take a few mindful breaths.";
+  }
+
 }

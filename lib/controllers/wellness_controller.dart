@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../services/wellness_service.dart';
 import '../services/mood_classifier.dart';
 import '../ai/ai_service.dart';
-import '../ai/cohere_provider.dart';
+import '../ai/gemini_provider.dart';
 
 class WellnessController extends ChangeNotifier {
   final WellnessService _wellnessService = WellnessService();
-  final AIService _aiService = AIService(CohereProvider());
+  final AIService _aiService = AIService(GeminiProvider());
   final MoodClassifier _localClassifier = MoodClassifier();
   WellnessController() {
     _initLocalClassifier();

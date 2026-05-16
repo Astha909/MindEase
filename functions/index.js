@@ -7,6 +7,7 @@ const {onCall} = require("firebase-functions/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const twilio = require("twilio");
+const {GoogleGenerativeAI} = require("@google/generative-ai");
 
 // Limit max instances (cost control)
 setGlobalOptions({maxInstances: 10});
@@ -17,6 +18,7 @@ setGlobalOptions({maxInstances: 10});
 const twilioSid = defineSecret("TWILIO_SID");
 const twilioToken = defineSecret("TWILIO_AUTH_TOKEN");
 const twilioPhone = defineSecret("TWILIO_PHONE");
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
 /**
  * Send Emergency SMS
@@ -59,6 +61,112 @@ exports.sendEmergencySMS = onCall(
       } catch (error) {
         logger.error("Error sending SMS", error);
         throw new Error(error.message);
+      }
+    },
+);
+
+/**
+ * Generate AI Response (Gemini)
+ */
+exports.generateAIResponse = onCall(
+    {secrets: [geminiApiKey]},
+    async (request) => {
+      try {
+        // 🔐 Auth check
+        if (!request.auth) {
+          throw new Error("Unauthenticated");
+        }
+
+        // 📩 User message
+        const {message} = request.data;
+
+        if (!message) {
+          throw new Error("Message is required");
+        }
+
+        // 🤖 Gemini init
+        const genAI = new GoogleGenerativeAI(
+            geminiApiKey.value(),
+        );
+
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.5-flash",
+        });
+
+        // 🧠 Prompt
+        const prompt = `
+You are a supportive wellness assistant.
+
+Return a valid JSON object only.
+No markdown.
+No explanation text.
+
+Required JSON format:
+{
+ "chat_reply":"",
+ "is_crisis":false,
+ "crisis_level":"none"
+}
+
+Rules:
+- Never diagnose mental illness
+- Never encourage self-harm
+- Stay supportive and calm
+- If crisis detected, set crisis_level appropriately
+
+User input:
+${message}
+`;
+
+        // 🚀 Generate response
+        const result = await model.generateContent(prompt);
+
+        const rawText = result.response.text().trim();
+
+        logger.info("Gemini raw response:", rawText);
+
+        let cleanedText = rawText;
+
+        // Remove markdown wrappers if Gemini returns them
+        cleanedText = cleanedText
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+        // Extract JSON safely
+        const jsonStart = cleanedText.indexOf("{");
+        const jsonEnd = cleanedText.lastIndexOf("}");
+
+        if (jsonStart === -1 || jsonEnd === -1) {
+          throw new Error("Invalid JSON response from Gemini");
+        }
+
+        cleanedText =
+        cleanedText.substring(jsonStart, jsonEnd + 1);
+
+        let parsed;
+
+        try {
+          parsed = JSON.parse(cleanedText);
+        } catch (e) {
+          logger.error("JSON parse failed:", cleanedText);
+
+          parsed = {
+            chat_reply: rawText,
+            is_crisis: false,
+            crisis_level: "none",
+          };
+        }
+
+        return parsed;
+      } catch (error) {
+        logger.error("Gemini error", error);
+
+        return {
+          chat_reply: "I'm here with you 🤍",
+          is_crisis: false,
+          crisis_level: "none",
+        };
       }
     },
 );

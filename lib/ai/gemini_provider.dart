@@ -1,72 +1,40 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
+import 'package:cloud_functions/cloud_functions.dart';
 import 'ai_provider.dart';
-import '../config/api_keys.dart';
 
 class GeminiProvider implements AIProvider {
 
-  static const String _endpoint =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent";
-
   @override
-  Future<Map<String,dynamic>> getReply(String message) async {
+  Future<Map<String, dynamic>> getReply(String message) async {
+    try {
 
-    final response = await http.post(
-      Uri.parse("$_endpoint?key=$geminiApiKey"),
-      headers: {
-        "Content-Type":"application/json",
-      },
-      body: jsonEncode({
-        "contents":[
-          {
-            "parts":[
-              {
-                "text": """
-You are a supportive wellness assistant.
+      final callable =
+      FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('generateAIResponse');
 
-Return ONLY valid JSON:
-{
- "mood":"",
- "chat_reply":"",
- "tips":["",""],
- "activity":"",
- "is_crisis":false,
- "crisis_level":"none"
-}
+      final response = await callable.call({
+        "message": message,
+      });
 
-User input:
-$message
-"""
-              }
-            ]
-          }
-        ]
-      }),
-    );
+      final data = Map<String, dynamic>.from(response.data);
 
-    if(response.statusCode==200){
+      return {
+        "mood": data["mood"] ?? "neutral",
+        "chat_reply": data["chat_reply"] ?? "I'm here with you 🤍",
+        "tips": data["tips"] ?? [],
+        "activity": data["activity"] ?? "",
+        "is_crisis": data["is_crisis"] ?? false,
+        "crisis_level": data["crisis_level"] ?? "none",
+      };
 
-      final data=jsonDecode(response.body);
-
-      final rawText =
-      data["candidates"][0]["content"]["parts"][0]["text"];
-
-      final jsonStart = rawText.indexOf('{');
-      final jsonEnd = rawText.lastIndexOf('}');
-
-      final cleanedText =
-      rawText.substring(jsonStart,jsonEnd+1);
-
-      return jsonDecode(cleanedText);
+    } catch (e) {
+      return {
+        "mood": "neutral",
+        "chat_reply": "I'm here with you 🤍",
+        "tips": [],
+        "activity": "",
+        "is_crisis": false,
+        "crisis_level": "none",
+      };
     }
-
-    return {
-      "mood":"neutral",
-      "chat_reply":"I'm here with you 🤍",
-      "tips":[],
-      "activity":"",
-      "crisis_level":"none"
-    };
   }
 }
