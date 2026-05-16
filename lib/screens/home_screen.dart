@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../controllers/home_controller.dart';
+
 import 'chat_screen.dart';
 import 'mood_screen.dart';
 import 'emergency_screen.dart';
@@ -21,10 +23,27 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final HomeController _homeController;
 
+  /// CURRENT MOOD STATE
+  String currentMood = "Happy";
+
+  Color currentMoodColor = Colors.green;
+
   @override
   void initState() {
     super.initState();
+
     _homeController = HomeController();
+  }
+
+  /// UPDATE MOOD FROM MOOD SCREEN
+  void updateMood(
+    String mood,
+    Color color,
+  ) {
+    setState(() {
+      currentMood = mood;
+      currentMoodColor = color;
+    });
   }
 
   @override
@@ -45,7 +64,9 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(
+              right: 16,
+            ),
             child: GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -56,7 +77,9 @@ class _HomeScreenState extends State<HomeScreen>
                 );
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(
+                  milliseconds: 300,
+                ),
                 padding: const EdgeInsets.all(3),
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
@@ -81,17 +104,18 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-
-      /// 🔥 FIX: SafeArea added
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _homeController,
           builder: (context, _) {
             return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-
-              /// 🔥 FIX: prevents flicker/jump
-              layoutBuilder: (currentChild, previousChildren) {
+              duration: const Duration(
+                milliseconds: 300,
+              ),
+              layoutBuilder: (
+                currentChild,
+                previousChildren,
+              ) {
                 return Stack(
                   children: [
                     ...previousChildren,
@@ -99,13 +123,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 );
               },
-
               child: _buildCurrentScreen(),
             );
           },
         ),
       ),
-
       bottomNavigationBar: AnimatedBuilder(
         animation: _homeController,
         builder: (context, _) {
@@ -125,14 +147,14 @@ class _HomeScreenState extends State<HomeScreen>
               borderRadius: BorderRadius.circular(30),
               child: BottomNavigationBar(
                 currentIndex: _homeController.selectedIndex,
-
-                /// 🔥 FIX: prevent unnecessary rebuilds
                 onTap: (index) {
-                  if (index == _homeController.selectedIndex) return;
+                  if (index == _homeController.selectedIndex) {
+                    return;
+                  }
+
                   _homeController.changeTab(index);
                 },
-
-                selectedItemColor: const Color(0xFF5D9CEC),
+                selectedItemColor: currentMoodColor,
                 unselectedItemColor: Colors.grey,
                 backgroundColor: Colors.white,
                 type: BottomNavigationBarType.fixed,
@@ -147,7 +169,9 @@ class _HomeScreenState extends State<HomeScreen>
                     label: "Mood",
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.warning_amber_outlined),
+                    icon: Icon(
+                      Icons.warning_amber_outlined,
+                    ),
                     label: "Emergency",
                   ),
                 ],
@@ -161,24 +185,33 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildCurrentScreen() {
     switch (_homeController.selectedIndex) {
+      /// CHAT
       case 0:
         return ChatScreen(
           key: const ValueKey(0),
           chatController: _homeController.chatController,
           userId: widget.userId,
+          mood: currentMood,
+          moodColor: currentMoodColor,
         );
+
+      /// MOOD
       case 1:
         return MoodScreen(
           key: const ValueKey(1),
           userId: widget.userId,
           wellnessController: _homeController.wellnessController,
+          onMoodChanged: updateMood,
         );
+
+      /// EMERGENCY
       case 2:
         return EmergencyScreen(
           key: const ValueKey(2),
           userId: widget.userId,
           emergencyController: _homeController.emergencyController,
         );
+
       default:
         return const SizedBox();
     }
@@ -187,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _homeController.dispose();
+
     super.dispose();
   }
 }

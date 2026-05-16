@@ -5,12 +5,20 @@ import 'dart:async';
 
 class MoodScreen extends StatefulWidget {
   final String userId;
+
   final WellnessController wellnessController;
+
+  /// NEW
+  final Function(
+    String mood,
+    Color color,
+  ) onMoodChanged;
 
   const MoodScreen({
     super.key,
     required this.userId,
     required this.wellnessController,
+    required this.onMoodChanged,
   });
 
   @override
@@ -27,6 +35,7 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
   String? _lastMood;
 
   bool _isSaving = false;
+  bool _showSavedMessage = false;
 
   final TextEditingController _manualController = TextEditingController();
 
@@ -80,7 +89,9 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
   Future<void> _saveMood(String mood) async {
     if (_isSaving) return;
 
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
       await _controller.analyzeManualMood(
@@ -90,29 +101,28 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text("$mood saved"),
-          action: SnackBarAction(
-            label: "UNDO",
-            onPressed: () {
-              _controller.deleteLatestMood(widget.userId);
-            },
-          ),
-        ),
-      );
+      setState(() {
+        _showSavedMessage = true;
+      });
+
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _showSavedMessage = false;
+          });
+        }
+      });
     } catch (_) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Something went wrong"),
-        ),
-      );
+      setState(() {
+        _showSavedMessage = false;
+      });
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
   }
@@ -120,15 +130,24 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
   void _handleMoodTap(Offset localPos) {
     final center = const Offset(140, 140);
 
-    final angle = atan2(
-      localPos.dy - center.dy,
-      localPos.dx - center.dx,
-    );
+    final dx = localPos.dx - center.dx;
+    final dy = localPos.dy - center.dy;
 
-    int index = ((angle + pi) / (2 * pi / moods.length)).floor();
+    double angle = atan2(dy, dx);
 
-    if (index < 0) index = 0;
-    if (index >= moods.length) index = moods.length - 1;
+    angle += pi / 2;
+
+    if (angle < 0) {
+      angle += 2 * pi;
+    }
+
+    final sweep = 2 * pi / moods.length;
+
+    int index = (angle / sweep).floor();
+
+    if (index >= moods.length) {
+      index = moods.length - 1;
+    }
 
     setState(() {
       _selectedIndex = index;
@@ -136,9 +155,18 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
   }
 
   void _saveSelectedMood() {
-    final mood = "${moods[_selectedIndex]} (${_intensity.toInt()}/10)";
+    final mood = moods[_selectedIndex];
 
-    _saveMood(mood);
+    final moodWithIntensity = "$mood (${_intensity.toInt()}/10)";
+
+    /// UPDATE CHAT THEME
+    widget.onMoodChanged(
+      mood,
+      moodColors[_selectedIndex],
+    );
+
+    /// SAVE EXISTING MOOD
+    _saveMood(moodWithIntensity);
   }
 
   @override
@@ -231,11 +259,7 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
                       children: [
                         GestureDetector(
                           onTapUp: (details) {
-                            final box = context.findRenderObject() as RenderBox;
-
-                            final localPos = box.globalToLocal(
-                              details.globalPosition,
-                            );
+                            final localPos = details.localPosition;
 
                             _handleMoodTap(localPos);
                           },
@@ -247,6 +271,7 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
                                 selectedIndex: _selectedIndex,
                                 moodColors: moodColors,
                                 moods: moods,
+                                emojis: emojis,
                               ),
                               child: Center(
                                 child: AnimatedScale(
@@ -337,6 +362,43 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
+                        ),
+
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _showSavedMessage
+                              ? Container(
+                                  margin: const EdgeInsets.only(
+                                    top: 12,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Mood saved successfully",
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       ],
                     ),
@@ -487,11 +549,44 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
                 ],
               ),
             ),
+
+            /// SMALL LOADING INDICATOR
             if (_isSaving)
-              Container(
-                color: Colors.black.withOpacity(0.15),
-                child: const Center(
-                  child: CircularProgressIndicator(),
+              Positioned(
+                bottom: 25,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          "Analyzing mood...",
+                          style: TextStyle(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -505,11 +600,13 @@ class PizzaPainter extends CustomPainter {
   final int selectedIndex;
   final List<String> moods;
   final List<Color> moodColors;
+  final List<String> emojis;
 
   PizzaPainter({
     required this.selectedIndex,
     required this.moods,
     required this.moodColors,
+    required this.emojis,
   });
 
   @override
@@ -531,14 +628,62 @@ class PizzaPainter extends CustomPainter {
           center: center,
           radius: radius,
         ),
-        i * sweep,
+        (i * sweep) - (pi / 2),
         sweep,
         true,
         paint,
       );
+
+      final angle = ((i * sweep) - (pi / 2)) + (sweep / 2);
+
+      final labelRadius = radius * 0.72;
+
+      final dx = center.dx + labelRadius * cos(angle);
+
+      final dy = center.dy + labelRadius * sin(angle);
+
+      final emojiPainter = TextPainter(
+        text: TextSpan(
+          text: emojis[i],
+          style: const TextStyle(fontSize: 18),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      emojiPainter.layout();
+
+      emojiPainter.paint(
+        canvas,
+        Offset(
+          dx - 12,
+          dy - 18,
+        ),
+      );
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: moods[i],
+          style: TextStyle(
+            color: i == selectedIndex ? Colors.white : Colors.black87,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      );
+
+      textPainter.layout(maxWidth: 55);
+
+      textPainter.paint(
+        canvas,
+        Offset(
+          dx - (textPainter.width / 2),
+          dy + 4,
+        ),
+      );
     }
 
-    /// INNER CIRCLE
     canvas.drawCircle(
       center,
       55,
