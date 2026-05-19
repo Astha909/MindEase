@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
@@ -18,12 +17,11 @@ class MoodClassifier {
     );
 
     String tokenizerJson =
-    await rootBundle.loadString('assets/model/tokenizer_config.json');
+        await rootBundle.loadString('assets/model/tokenizer_config.json');
     Map<String, dynamic> tokenizerData = json.decode(tokenizerJson);
     wordIndex = Map<String, int>.from(tokenizerData["word_index"]);
 
-    String labelsJson =
-    await rootBundle.loadString('assets/model/labels.json');
+    String labelsJson = await rootBundle.loadString('assets/model/labels.json');
     labels = List<String>.from(json.decode(labelsJson));
 
     isLoaded = true;

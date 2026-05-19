@@ -128,7 +128,7 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
   }
 
   void _handleMoodTap(Offset localPos) {
-    final center = const Offset(140, 140);
+    const center = Offset(140, 140);
 
     final dx = localPos.dx - center.dx;
     final dy = localPos.dy - center.dy;
