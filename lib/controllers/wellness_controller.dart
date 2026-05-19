@@ -36,10 +36,13 @@ class WellnessController extends ChangeNotifier {
     return _wellnessService.getWellnessTips();
   }
 
+  // UPDATED analyzeManualMood()
+
   Future<void> analyzeManualMood({
     required String userId,
     required String moodInput,
   }) async {
+
     if (moodInput.trim().isEmpty) {
       _setError("Mood input cannot be empty");
       return;
@@ -49,20 +52,30 @@ class WellnessController extends ChangeNotifier {
     _setError(null);
 
     try {
-      final localMood = _localClassifier.predict(moodInput);
 
-      final aiResult = await _aiService.getReply(
+      final localMood =
+      _localClassifier.predict(moodInput);
+
+      final aiResult = await _aiService
+          .getReply(
           "User feels: $moodInput (detected mood: $localMood)"
-      );
+      )
+          .timeout(const Duration(seconds: 15));
 
-      // SAFETY: ensure proper type handling
       String mood = moodInput;
       List<dynamic> tips = [];
       String activity = "";
 
-      mood = aiResult["mood"]?.toString() ?? localMood;
-      tips = aiResult["tips"] is List ? aiResult["tips"] : [];
-      activity = aiResult["activity"]?.toString() ?? "";
+      mood =
+          aiResult["mood"]?.toString() ?? localMood;
+
+      tips =
+      aiResult["tips"] is List
+          ? aiResult["tips"]
+          : [];
+
+      activity =
+          aiResult["activity"]?.toString() ?? "";
 
       await _wellnessService.addMoodLog(
         userId: userId,
@@ -70,9 +83,13 @@ class WellnessController extends ChangeNotifier {
         note: activity,
         tips: tips,
       );
+
     } catch (e) {
+
       _setError(e.toString());
+
     } finally {
+
       _setLoading(false);
     }
   }

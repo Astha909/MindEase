@@ -6,13 +6,14 @@ class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
 
-  // Simple encryption helpers
-  String _encrypt(String text) {
-    return String.fromCharCodes(text.runes.toList().reversed);
-  }
+  // Temporary simplified encryption
+  String _encrypt(String text) => text;
+
 
   String _decrypt(String text) {
-    return String.fromCharCodes(text.runes.toList().reversed);
+    return String.fromCharCodes(
+      text.runes.toList().reversed,
+    );
   }
   // 1. Create or get chat
   Future<String> getOrCreateChat(String userId) async {
@@ -22,7 +23,8 @@ class ChatService {
         .collection('chats')
         .where('userId', isEqualTo: userId)
         .limit(1)
-        .get();
+        .get()
+        .timeout(const Duration(seconds: 10));
 
     print("📦 Query completed. Docs: ${query.docs.length}");
 
@@ -139,8 +141,12 @@ class ChatService {
         .collection('chats')
         .doc(chatId)
         .collection('messages')
-        .orderBy('timestamp', descending: false)
+        .orderBy('timestamp', descending: true)
+        .limit(50)
         .snapshots()
+        .handleError((e) {
+      print("Firestore stream error: $e");
+    })
         .map((snapshot) {
       return snapshot.docs
           .map((doc) {
@@ -175,7 +181,7 @@ class ChatService {
   Future<QuerySnapshot> fetchMessages({
     required String chatId,
     Map<String, dynamic>? lastMessage,
-    int limit = 20,
+    int limit = 15,
   }) async {
     Query query = _firestore
         .collection('chats')
@@ -188,12 +194,14 @@ class ChatService {
       query = query.startAfter([lastMessage['timestamp']]);
     }
 
-    return await query.get();
+    return await query
+        .get()
+        .timeout(const Duration(seconds: 10));
   }
 
   Future<List<String>> getRecentConversation(
       String chatId, {
-        int limit = 5,
+        int limit = 3,
       }) async {
 
     final snapshot = await _firestore
@@ -202,7 +210,8 @@ class ChatService {
         .collection('messages')
         .orderBy('timestamp', descending: true)
         .limit(limit)
-        .get();
+        .get()
+        .timeout(const Duration(seconds: 10));
 
     final messages = snapshot.docs.reversed.map((doc) {
       final data = doc.data();

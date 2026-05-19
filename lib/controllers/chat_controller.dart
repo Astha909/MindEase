@@ -111,7 +111,9 @@ class ChatController extends ChangeNotifier {
     required String userId,
     required String message,
   }) async {
-    if (message.trim().isEmpty) return;
+    if (message.trim().isEmpty || isLoading) {
+      return;
+    }
 
     _setLoading(true);
     _setError(null);
@@ -119,16 +121,15 @@ class ChatController extends ChangeNotifier {
     try {
 
       // Fetch prior conversation BEFORE saving current turn
-      final history =
-      await _chatService.getRecentConversation(chatId);
-
-      // Save current user message
       await _chatService.sendMessage(
         chatId: chatId,
         userId: userId,
         sender: "user",
         text: message,
       );
+
+      final history =
+      await _chatService.getRecentConversation(chatId);
 
       Map<String, dynamic> aiResult = {};
 
@@ -166,16 +167,17 @@ class ChatController extends ChangeNotifier {
       try {
 
         final memoryPrompt = """
-        Recent conversation:
-        ${history.join('\n')}
-        
-        Current user message:
-        $normalizedMessage
-        
-        Detected mood:
-        $localMood
-        """;
-        aiResult = await _aiService.getReply(memoryPrompt);
+          Mood: $localMood
+          
+          Recent:
+          ${history.join('\n')}
+          
+          User:
+          $normalizedMessage
+          """;
+        aiResult = await _aiService
+            .getReply(memoryPrompt)
+            .timeout(const Duration(seconds: 15));
       } catch (e){
         debugPrint("AI error: $e");
         aiResult = {
@@ -226,7 +228,7 @@ class ChatController extends ChangeNotifier {
 // 💾 Save mood to Wellness system (always)
       // 💾 Save mood to Wellness system (non-blocking)
       try {
-        await _wellnessService.addMoodLog(
+        _wellnessService.addMoodLog(
           userId: userId,
           mood: mood,
           note: activity,
@@ -262,8 +264,11 @@ class ChatController extends ChangeNotifier {
         isCrisis: crisisLevel == "severe",
         crisisLevel: crisisLevel,
       );
-    } catch (e) {
-      _setError("Failed to process message");
+    } catch (e, stack) {
+      debugPrint("❌ Chat error: $e");
+      debugPrintStack(stackTrace: stack);
+
+      _setError(e.toString());
     } finally {
       _setLoading(false);
     }

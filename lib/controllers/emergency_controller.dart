@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../services/emergency_service.dart';
 
 class EmergencyController extends ChangeNotifier {
-  final EmergencyService _emergencyService = EmergencyService();
+
+  final EmergencyService _emergencyService =
+  EmergencyService();
 
   bool isLoading = false;
+
   String? errorMessage;
 
   void _setLoading(bool value) {
@@ -17,20 +20,32 @@ class EmergencyController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // GET CONTACTS
   Stream getEmergencyContacts(String userId) {
-    return _emergencyService.getEmergencyContacts(userId);
+    return _emergencyService
+        .getEmergencyContacts(userId);
   }
 
+  // GET LOGS
   Stream getEmergencyLogs(String userId) {
-    return _emergencyService.getEmergencyLogs(userId);
-  }
-  /// 🔍 Check for emergency keywords
-  List<String> checkEmergencyKeywords(String message) {
-    if (message.trim().isEmpty) return [];
-    return _emergencyService.getEmergencyKeywords(message);
+    return _emergencyService
+        .getEmergencyLogs(userId);
   }
 
-  /// 🚨 Trigger full emergency flow
+  // CHECK KEYWORDS
+  List<String> checkEmergencyKeywords(
+      String message,
+      ) {
+
+    if (message.trim().isEmpty) {
+      return [];
+    }
+
+    return _emergencyService
+        .getEmergencyKeywords(message);
+  }
+
+  // TRIGGER EMERGENCY
   Future<void> triggerEmergency({
     required String userId,
     required String message,
@@ -38,77 +53,130 @@ class EmergencyController extends ChangeNotifier {
     required bool isConfirmed,
     String triggerType = "keyword_detection",
   }) async {
-    if (message.trim().isEmpty || keywordsFound.isEmpty) {
+
+    if (message.trim().isEmpty ||
+        keywordsFound.isEmpty) {
+
       _setError("Invalid emergency trigger");
       return;
     }
+
     if (!isConfirmed) {
+
       _setError("Emergency not confirmed");
       return;
     }
 
     _setLoading(true);
+
     _setError(null);
 
     try {
-      await _emergencyService.triggerEmergency(
+
+      await _emergencyService
+          .triggerEmergency(
         userId: userId,
         message: message,
         keywordsFound: keywordsFound,
         triggerType: triggerType,
       );
-    } catch (e) {
+
+    } catch (e, stack) {
+
+      debugPrint("Emergency error: $e");
+
+      debugPrintStack(
+        stackTrace: stack,
+      );
+
       _setError(e.toString());
+
     } finally {
+
       _setLoading(false);
     }
   }
 
-  /// ➕ Add contact
+  // ADD CONTACT
   Future<void> addContact({
     required String userId,
     required String name,
     required String phone,
     required String relation,
   }) async {
+
     if (name.trim().isEmpty ||
         phone.trim().isEmpty ||
         relation.trim().isEmpty) {
+
       _setError("All fields are required");
       return;
     }
 
     _setLoading(true);
+
     _setError(null);
 
     try {
-      await _emergencyService.addEmergencyContact(
+
+      await _emergencyService
+          .addEmergencyContact(
         userId: userId,
         name: name,
         phone: phone,
         relation: relation,
       );
-    } catch (e) {
+
+    } catch (e, stack) {
+
+      debugPrint("Emergency error: $e");
+
+      debugPrintStack(
+        stackTrace: stack,
+      );
+
       _setError(e.toString());
+
     } finally {
+
       _setLoading(false);
     }
   }
 
-  Future<void> deleteContact(String contactId) async {
+  // DELETE CONTACT
+  Future<void> deleteContact(
+      String contactId,
+      ) async {
+
     if (contactId.trim().isEmpty) {
+
       _setError("Invalid contact");
       return;
     }
 
     _setLoading(true);
+
     _setError(null);
 
     try {
-      await _emergencyService.deleteEmergencyContact(contactId);
-    } catch (e) {
+
+      await _emergencyService
+          .deleteEmergencyContact(
+        contactId,
+      );
+
+    } catch (e, stack) {
+
+      debugPrint("Emergency error: $e");
+
+      debugPrintStack(
+        stackTrace: stack,
+      );
+
       _setError(e.toString());
+
     } finally {
+
       _setLoading(false);
     }
   }

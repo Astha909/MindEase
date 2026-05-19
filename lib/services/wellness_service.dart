@@ -181,20 +181,34 @@ class WellnessService {
   }
 
   // GET mood logs (latest first)
+  // UPDATED getMoodLogs()
+
   Stream<QuerySnapshot> getMoodLogs(String userId) {
     return _firestore
         .collection('mood_logs')
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
-        .snapshots();
+        .limit(30)
+        .snapshots()
+        .handleError((e, stack) {
+      print("Mood logs stream error: $e");
+      print(stack);
+    });
   }
 
   // GET wellness tips
+  // UPDATED getWellnessTips()
+
   Stream<QuerySnapshot> getWellnessTips() {
     return _firestore
         .collection('wellness_tips')
         .orderBy('createdAt', descending: true)
-        .snapshots();
+        .limit(20)
+        .snapshots()
+        .handleError((e, stack) {
+      print("Wellness tips stream error: $e");
+      print(stack);
+    });
   }
 
   // DELETE latest mood log
@@ -211,33 +225,28 @@ class WellnessService {
     }
   }
 
-  // FETCH latest mood
+// UPDATED fetchLatestMood()
+
   Future<String?> fetchLatestMood(String userId) async {
+
     final snapshot = await _firestore
         .collection('mood_logs')
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .limit(1)
-        .get();
+        .get()
+        .timeout(const Duration(seconds: 10));
 
-    if (snapshot.docs.isEmpty) return null;
+    if (snapshot.docs.isEmpty) {
+      return null;
+    }
 
     return snapshot.docs.first.data()['mood'];
   }
+  // UPDATED getTipsForMood()
 
-  // GET tips based on mood
   Future<List<dynamic>> getTipsForMood(String mood) async {
 
-    final snapshot = await _firestore
-        .collection('wellness_tips')
-        .limit(5)
-        .get();
-
-    if (snapshot.docs.isEmpty) {
-      return [];
-    }
-
-    // Simple mapping based on mood keywords
     final moodMap = {
       "sad": ["support", "self-care", "mindset"],
       "anxious": ["anxiety", "mindfulness", "relaxation"],
@@ -251,23 +260,27 @@ class WellnessService {
     final allowedCategories =
         moodMap[mood] ?? ["mindset"];
 
-    final filteredTips = snapshot.docs.where((doc) {
+    final snapshot = await _firestore
+        .collection('wellness_tips')
+        .where(
+      'category',
+      whereIn: allowedCategories,
+    )
+        .limit(5)
+        .get()
+        .timeout(const Duration(seconds: 10));
 
-      final data = doc.data();
+    if (snapshot.docs.isEmpty) {
+      return [];
+    }
 
-      return allowedCategories.contains(
-        data["category"],
-      );
-    }).toList();
-
-    return filteredTips.map((doc) {
+    return snapshot.docs.map((doc) {
 
       final data = doc.data();
 
       return "${data["emoji"]} ${data["content"]}";
     }).toList();
   }
-
   // GET activity suggestion based on mood
   Future<String> getActivityForMood(String mood) async {
 
