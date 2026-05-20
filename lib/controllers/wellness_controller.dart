@@ -70,12 +70,13 @@ class WellnessController extends ChangeNotifier {
           aiResult["mood"]?.toString() ?? localMood;
 
       tips =
-      aiResult["tips"] is List
-          ? aiResult["tips"]
-          : [];
+      await _wellnessService
+          .getTipsForMood(mood);
 
       activity =
           aiResult["activity"]?.toString() ?? "";
+
+
 
       await _wellnessService.addMoodLog(
         userId: userId,

@@ -35,6 +35,9 @@ class _ChatScreenState extends State<ChatScreen>
   late final AnimationController _bgController;
 
   String? _chatId;
+
+  Stream<List<Map<String, dynamic>>>?
+  _messagesStream;
   bool _pressed = false;
   bool _hideControllerError = false;
 
@@ -53,12 +56,22 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Future<void> _initChat() async {
-    final id = await widget.chatController.getOrCreateChat(widget.userId);
+
+    final id =
+    await widget.chatController
+        .getOrCreateChat(
+      widget.userId,
+    );
 
     if (!mounted) return;
 
     setState(() {
+
       _chatId = id;
+
+      _messagesStream =
+          widget.chatController
+              .listenToMessages(id);
     });
   }
 
@@ -434,11 +447,9 @@ class _ChatScreenState extends State<ChatScreen>
                                     !_hideControllerError;
 
                             return StreamBuilder<List<Map<String, dynamic>>>(
-                              stream: _chatId == null
-                                  ? Stream.value([])
-                                  : widget.chatController.listenToMessages(
-                                      _chatId!,
-                                    ),
+                              stream:
+                              _messagesStream ??
+                                  Stream.value([]),
                               builder: (context, snapshot) {
                                 final docs = snapshot.data ?? [];
 
