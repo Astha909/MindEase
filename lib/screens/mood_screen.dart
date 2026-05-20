@@ -197,440 +197,394 @@ class _MoodScreenState extends State<MoodScreen> with TickerProviderStateMixin {
         return Scaffold(
           backgroundColor: const Color(0xffF5F7FB),
           body: SafeArea(
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      const Text(
-                        "Mood Meter",
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Mood Meter",
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Track how you feel today",
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        errorMessage,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Track how you feel today",
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      if (errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(16),
+                    ),
+                  ],
+                  const SizedBox(height: 25),
+                  if (_lastMood != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
                           ),
-                          child: Text(
-                            errorMessage,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w500,
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.history),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "Last mood: $_lastMood",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 25),
-                      if (_lastMood != null)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(22),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 25),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white,
+                          selectedColor.withOpacity(0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(32),
+                    ),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTapUp: isLoading
+                              ? null
+                              : (details) {
+                                  _handleMoodTap(details.localPosition);
+                                },
+                          child: SizedBox(
+                            height: 280,
+                            width: 280,
+                            child: CustomPaint(
+                              painter: PizzaPainter(
+                                selectedIndex: _selectedIndex,
+                                moodColors: moodColors,
+                                moods: moods,
+                                emojis: emojis,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.history),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  "Last mood: $_lastMood",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const SizedBox(height: 25),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white,
-                              selectedColor.withOpacity(0.08),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(32),
-                        ),
-                        child: Column(
-                          children: [
-                            GestureDetector(
-                              onTapUp: isLoading
-                                  ? null
-                                  : (details) {
-                                      _handleMoodTap(details.localPosition);
-                                    },
-                              child: SizedBox(
-                                height: 280,
-                                width: 280,
-                                child: CustomPaint(
-                                  painter: PizzaPainter(
-                                    selectedIndex: _selectedIndex,
-                                    moodColors: moodColors,
-                                    moods: moods,
-                                    emojis: emojis,
-                                  ),
-                                  child: Center(
-                                    child: AnimatedScale(
-                                      scale: 1.1,
-                                      duration:
-                                          const Duration(milliseconds: 250),
-                                      child: AnimatedSwitcher(
-                                        duration:
-                                            const Duration(milliseconds: 250),
-                                        child: Text(
-                                          emojis[_selectedIndex],
-                                          key: ValueKey(_selectedIndex),
-                                          style: const TextStyle(
-                                            fontSize: 58,
-                                          ),
-                                        ),
+                              child: Center(
+                                child: AnimatedScale(
+                                  scale: 1.1,
+                                  duration: const Duration(milliseconds: 250),
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 250),
+                                    child: Text(
+                                      emojis[_selectedIndex],
+                                      key: ValueKey(_selectedIndex),
+                                      style: const TextStyle(
+                                        fontSize: 58,
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 15),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 250),
-                              child: Text(
-                                moods[_selectedIndex],
-                                key: ValueKey(moods[_selectedIndex]),
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: selectedColor,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 25),
-                            Column(
-                              children: [
-                                Text(
-                                  "Intensity ${_intensity.toInt()}/10",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SliderTheme(
-                                  data: SliderTheme.of(context).copyWith(
-                                    activeTrackColor: selectedColor,
-                                    thumbColor: selectedColor,
-                                  ),
-                                  child: Slider(
-                                    value: _intensity,
-                                    min: 1,
-                                    max: 10,
-                                    divisions: 9,
-                                    onChanged: isLoading
-                                        ? null
-                                        : (v) {
-                                            setState(() {
-                                              _intensity = v;
-                                            });
-                                          },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: selectedColor,
-                                  disabledBackgroundColor:
-                                      selectedColor.withOpacity(0.4),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                onPressed: isLoading ? null : _saveSelectedMood,
-                                child: isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Text(
-                                        "Save Mood",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: _showSavedMessage
-                                  ? Container(
-                                      key: const ValueKey("saved_message"),
-                                      margin: const EdgeInsets.only(top: 12),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle,
-                                            color: Colors.green,
-                                            size: 18,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            "Mood saved successfully",
-                                            style: TextStyle(
-                                              color: Colors.green,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(25),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.edit_rounded),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Describe Your Mood",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            TextField(
-                              controller: _manualController,
-                              enabled: !isLoading,
-                              maxLines: 3,
-                              decoration: InputDecoration(
-                                hintText: "Write what you're feeling...",
-                                filled: true,
-                                fillColor: Colors.grey.shade100,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 15),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: isLoading
-                                    ? null
-                                    : () {
-                                        final text =
-                                            _manualController.text.trim();
-
-                                        if (text.isEmpty) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                "Mood input cannot be empty",
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-
-                                        _saveMood(
-                                          text,
-                                          clearManual: true,
-                                        );
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                child: isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Text("Analyze Mood"),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 400),
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.lightBlue.shade100,
-                              Colors.purple.shade100,
-                            ],
                           ),
-                          borderRadius: BorderRadius.circular(28),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.lightbulb),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Wellness Tips",
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(height: 15),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: Text(
+                            moods[_selectedIndex],
+                            key: ValueKey(moods[_selectedIndex]),
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: selectedColor,
                             ),
-                            const SizedBox(height: 18),
-                            _tips.isEmpty
-                                ? const Text(
-                                    "Log a mood to receive wellness guidance 💡",
-                                  )
-                                : Column(
-                                    children: _tips
-                                        .map(
-                                          (tip) => Container(
-                                            width: double.infinity,
-                                            margin: const EdgeInsets.only(
-                                              bottom: 12,
-                                            ),
-                                            padding: const EdgeInsets.all(14),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                            child: Text(
-                                              "• $tip",
-                                              style: const TextStyle(
-                                                height: 1.5,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-                if (isLoading)
-                  Positioned(
-                    bottom: 25,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
+                        const SizedBox(height: 25),
+                        Column(
                           children: [
-                            SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 12),
                             Text(
-                              "Analyzing mood...",
-                              style: TextStyle(
-                                color: Colors.white,
+                              "Intensity ${_intensity.toInt()}/10",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: selectedColor,
+                                thumbColor: selectedColor,
+                              ),
+                              child: Slider(
+                                value: _intensity,
+                                min: 1,
+                                max: 10,
+                                divisions: 9,
+                                onChanged: isLoading
+                                    ? null
+                                    : (v) {
+                                        setState(() {
+                                          _intensity = v;
+                                        });
+                                      },
                               ),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: selectedColor,
+                              disabledBackgroundColor:
+                                  selectedColor.withOpacity(0.4),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            onPressed: isLoading ? null : _saveSelectedMood,
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Save Mood",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _showSavedMessage
+                              ? Container(
+                                  key: const ValueKey("saved_message"),
+                                  margin: const EdgeInsets.only(top: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Mood saved successfully",
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
                   ),
-              ],
+                  const SizedBox(height: 30),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.edit_rounded),
+                            SizedBox(width: 10),
+                            Text(
+                              "Describe Your Mood",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        TextField(
+                          controller: _manualController,
+                          enabled: !isLoading,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: "Write what you're feeling...",
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: isLoading
+                                ? null
+                                : () {
+                                    final text = _manualController.text.trim();
+
+                                    if (text.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "Mood input cannot be empty",
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    _saveMood(
+                                      text,
+                                      clearManual: true,
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text("Analyze Mood"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.lightBlue.shade100,
+                          Colors.purple.shade100,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.lightbulb),
+                            SizedBox(width: 10),
+                            Text(
+                              "Wellness Tips",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        _tips.isEmpty
+                            ? const Text(
+                                "Log a mood to receive wellness guidance 💡",
+                              )
+                            : Column(
+                                children: _tips
+                                    .map(
+                                      (tip) => Container(
+                                        width: double.infinity,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: Text(
+                                          "• $tip",
+                                          style: const TextStyle(
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         );

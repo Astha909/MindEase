@@ -12,6 +12,7 @@ class ChatScreen extends StatefulWidget {
   final String userId;
   final String mood;
   final Color moodColor;
+  final VoidCallback onProfileTap;
 
   const ChatScreen({
     super.key,
@@ -19,6 +20,7 @@ class ChatScreen extends StatefulWidget {
     required this.userId,
     required this.mood,
     required this.moodColor,
+    required this.onProfileTap,
   });
 
   @override
@@ -243,7 +245,10 @@ class _ChatScreenState extends State<ChatScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              controller.dispose();
+              Navigator.pop(context);
+            },
             child: const Text("Cancel"),
           ),
           TextButton(
@@ -258,6 +263,8 @@ class _ChatScreenState extends State<ChatScreen>
                   newText: newText,
                 );
               }
+
+              controller.dispose();
 
               if (mounted) {
                 Navigator.pop(context);
@@ -333,6 +340,32 @@ class _ChatScreenState extends State<ChatScreen>
             ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: GestureDetector(
+              onTap: widget.onProfileTap,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.35),
+                  ),
+                ),
+                child: const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white24,
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: AnimatedBuilder(
         animation: _bgController,

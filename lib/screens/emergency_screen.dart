@@ -109,6 +109,78 @@ class _EmergencyScreenState extends State<EmergencyScreen>
     }
   }
 
+  Widget _emptyContactsState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.22),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.18),
+              ),
+              child: const Icon(
+                Icons.contact_emergency_rounded,
+                size: 38,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              "No contacts added yet.",
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Add someone trusted for emergencies.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.68),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _contactsErrorState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.22),
+          ),
+        ),
+        child: Text(
+          "Unable to load contacts right now.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.85),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -243,15 +315,12 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                         width: double.infinity,
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(
-                                            0.16,
-                                          ),
+                                          color: Colors.white.withOpacity(0.16),
                                           borderRadius:
                                               BorderRadius.circular(16),
                                           border: Border.all(
-                                            color: Colors.white.withOpacity(
-                                              0.18,
-                                            ),
+                                            color:
+                                                Colors.white.withOpacity(0.18),
                                           ),
                                         ),
                                         child: Text(
@@ -321,78 +390,14 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                   stream: widget.emergencyController
                                       .getEmergencyContacts(widget.userId),
                                   builder: (context, snapshot) {
-                                    final docs = snapshot.data?.docs ?? [];
-
-                                    if (snapshot.connectionState ==
-                                            ConnectionState.waiting &&
-                                        docs.isEmpty) {
-                                      return Center(
-                                        child: Text(
-                                          "Loading contacts...",
-                                          style: TextStyle(
-                                            color:
-                                                Colors.white.withOpacity(0.75),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      );
+                                    if (snapshot.hasError) {
+                                      return _contactsErrorState();
                                     }
 
+                                    final docs = snapshot.data?.docs ?? [];
+
                                     if (docs.isEmpty) {
-                                      return Center(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(24),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                Colors.white.withOpacity(0.15),
-                                            borderRadius:
-                                                BorderRadius.circular(24),
-                                            border: Border.all(
-                                              color: Colors.white.withOpacity(
-                                                0.22,
-                                              ),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.all(16),
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: Colors.white
-                                                      .withOpacity(0.18),
-                                                ),
-                                                child: const Icon(
-                                                  Icons
-                                                      .contact_emergency_rounded,
-                                                  size: 38,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 14),
-                                              const Text(
-                                                "No contacts added yet.",
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                "Add someone trusted for emergencies.",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withOpacity(0.68),
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
+                                      return _emptyContactsState();
                                     }
 
                                     return ListView.builder(

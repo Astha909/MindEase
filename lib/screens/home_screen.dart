@@ -71,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 userId: widget.userId,
                 mood: currentMood,
                 moodColor: currentMoodColor,
+                onProfileTap: _openProfile,
               ),
               MoodScreen(
                 userId: widget.userId,
@@ -82,15 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 emergencyController: _homeController.emergencyController,
               ),
             ],
-          ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: currentMoodColor,
-            elevation: 6,
-            onPressed: _openProfile,
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-            ),
           ),
           bottomNavigationBar: _buildBottomNav(),
         );
@@ -117,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
           currentIndex: _homeController.selectedIndex,
           onTap: (index) {
             if (index == _homeController.selectedIndex) return;
+
             _homeController.changeTab(index);
           },
           selectedItemColor: currentMoodColor,
