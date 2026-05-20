@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
 
   http: ^1.2.0
   cupertino_icons: ^1.0.8
@@ -20,11 +19,12 @@ dependencies:
   cloud_firestore: ^5.4.0
   cloud_functions: ^5.0.0
   google_sign_in: ^6.2.1
+
   provider: ^6.1.2
   tflite_flutter: ^0.12.1
+
   animated_background: ^2.0.0
   flutter_animate: ^4.5.0
-
 
 dev_dependencies:
   flutter_test:
@@ -32,12 +32,13 @@ dev_dependencies:
 
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.13.1
-   
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/images/logo.png
+    - assets/images/icon.png
     - assets/model/mindease_classifier_v1.tflite
     - assets/model/tokenizer.pkl
     - assets/model/label_encoder.pkl
@@ -49,5 +50,3 @@ flutter_icons:
   adaptive_icon_background: "#0B1F3A"
   adaptive_icon_foreground: "assets/images/icon.png"
   image_path: "assets/images/icon.png"
-  dependencies:
-  animated_background: ^2.0.0

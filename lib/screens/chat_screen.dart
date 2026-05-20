@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../controllers/chat_controller.dart';
-
 import '../widgets/chat_bubble.dart';
 import '../widgets/ai_typing_loader.dart';
 import '../widgets/chat_error_bubble.dart';
@@ -35,9 +33,10 @@ class _ChatScreenState extends State<ChatScreen>
   late final AnimationController _bgController;
 
   String? _chatId;
+  Stream<List<Map<String, dynamic>>>? _messagesStream;
 
-  Stream<List<Map<String, dynamic>>>?
-  _messagesStream;
+  bool _initializingChat = true;
+  bool _chatInitFailed = false;
   bool _pressed = false;
   bool _hideControllerError = false;
 
@@ -56,74 +55,82 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Future<void> _initChat() async {
+    if (mounted) {
+      setState(() {
+        _initializingChat = true;
+        _chatInitFailed = false;
+      });
+    }
 
-    final id =
-    await widget.chatController
-        .getOrCreateChat(
-      widget.userId,
-    );
+    try {
+      final id = await widget.chatController.getOrCreateChat(widget.userId);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
+      setState(() {
+        _chatId = id;
+        _messagesStream = widget.chatController.listenToMessages(id);
+        _initializingChat = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
 
-      _chatId = id;
-
-      _messagesStream =
-          widget.chatController
-              .listenToMessages(id);
-    });
+      setState(() {
+        _initializingChat = false;
+        _chatInitFailed = true;
+      });
+    }
   }
 
   List<Color> getMoodGradient() {
     switch (widget.mood.toLowerCase()) {
       case "happy":
-        return [
-          const Color(0xFFFFD89B),
-          const Color(0xFFFFB6B9),
-          const Color(0xFFFFECD2),
+        return const [
+          Color(0xFFFFD89B),
+          Color(0xFFFFB6B9),
+          Color(0xFFFFECD2),
         ];
 
       case "sad":
-        return [
-          const Color(0xFF0F2027),
-          const Color(0xFF203A43),
-          const Color(0xFF2C5364),
+        return const [
+          Color(0xFF0F2027),
+          Color(0xFF203A43),
+          Color(0xFF2C5364),
         ];
 
       case "angry":
-        return [
-          const Color(0xFF870000),
-          const Color(0xFF190A05),
-          const Color(0xFFFF512F),
+        return const [
+          Color(0xFF870000),
+          Color(0xFF190A05),
+          Color(0xFFFF512F),
         ];
 
       case "fearful":
-        return [
-          const Color(0xFF232526),
-          const Color(0xFF414345),
-          const Color(0xFF000000),
+        return const [
+          Color(0xFF232526),
+          Color(0xFF414345),
+          Color(0xFF000000),
         ];
 
       case "disgusted":
-        return [
-          const Color(0xFF654EA3),
-          const Color(0xFFEAafc8),
-          const Color(0xFF5B247A),
+        return const [
+          Color(0xFF654EA3),
+          Color(0xFFEAAFC8),
+          Color(0xFF5B247A),
         ];
 
       case "surprised":
-        return [
-          const Color(0xFFF7971E),
-          const Color(0xFFFFD200),
-          const Color(0xFFFFF6B7),
+        return const [
+          Color(0xFFF7971E),
+          Color(0xFFFFD200),
+          Color(0xFFFFF6B7),
         ];
 
       default:
-        return [
-          const Color(0xFFB0BEC5),
-          const Color(0xFFECEFF1),
-          const Color(0xFFCFD8DC),
+        return const [
+          Color(0xFF5D9CEC),
+          Color(0xFFA0D995),
+          Color(0xFFF6F8FF),
         ];
     }
   }
@@ -138,6 +145,7 @@ class _ChatScreenState extends State<ChatScreen>
     _messageController.clear();
 
     setState(() {
+      _pressed = false;
       _hideControllerError = false;
     });
 
@@ -148,6 +156,18 @@ class _ChatScreenState extends State<ChatScreen>
     );
 
     _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _showMessageOptions(Map<String, dynamic> message) {
@@ -231,7 +251,7 @@ class _ChatScreenState extends State<ChatScreen>
   void _showEditDialog(Map<String, dynamic> message) {
     if (_chatId == null) return;
 
-    final controller = TextEditingController(
+    final editController = TextEditingController(
       text: message['text'] ?? '',
     );
 
@@ -243,10 +263,10 @@ class _ChatScreenState extends State<ChatScreen>
         ),
         title: const Text("Edit Message"),
         content: TextField(
-          controller: controller,
+          controller: editController,
           autofocus: true,
-          maxLines: 4,
           minLines: 1,
+          maxLines: 4,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.grey.shade100,
@@ -259,14 +279,13 @@ class _ChatScreenState extends State<ChatScreen>
         actions: [
           TextButton(
             onPressed: () {
-              controller.dispose();
               Navigator.pop(context);
             },
             child: const Text("Cancel"),
           ),
           TextButton(
             onPressed: () async {
-              final newText = controller.text.trim();
+              final newText = editController.text.trim();
 
               if (newText.isNotEmpty) {
                 await widget.chatController.editMessage(
@@ -277,8 +296,6 @@ class _ChatScreenState extends State<ChatScreen>
                 );
               }
 
-              controller.dispose();
-
               if (mounted) {
                 Navigator.pop(context);
               }
@@ -287,16 +304,89 @@ class _ChatScreenState extends State<ChatScreen>
           ),
         ],
       ),
+    ).then((_) {
+      editController.dispose();
+    });
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.auto_awesome_rounded,
+              color: Colors.white.withOpacity(0.9),
+              size: 42,
+            ),
+            const SizedBox(height: 18),
+            Text(
+              "Start sharing what’s on your mind ✨",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Chhotu is here to listen and support you.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
-
-    _scrollController.animateTo(
-      0.0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+  Widget _buildInitError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 42,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              "Couldn’t load chat",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Please check your connection and try again.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.75),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 18),
+            TextButton(
+              onPressed: _initChat,
+              child: const Text(
+                "Retry",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -358,22 +448,12 @@ class _ChatScreenState extends State<ChatScreen>
             padding: const EdgeInsets.only(right: 14),
             child: GestureDetector(
               onTap: widget.onProfileTap,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.35),
-                  ),
-                ),
-                child: const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Colors.white24,
-                  child: Icon(
-                    Icons.person_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+              child: const CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.white24,
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -397,349 +477,222 @@ class _ChatScreenState extends State<ChatScreen>
                 colors: getMoodGradient(),
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: -80,
-                  right: -60,
-                  child: Container(
-                    width: 250,
-                    height: 250,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          widget.moodColor.withOpacity(0.28),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -100,
-                  left: -60,
-                  child: Container(
-                    width: 280,
-                    height: 280,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          widget.moodColor.withOpacity(0.20),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SafeArea(
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: AnimatedBuilder(
-                          animation: widget.chatController,
-                          builder: (context, _) {
-                            final isTyping = widget.chatController.isLoading;
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: AnimatedBuilder(
+                      animation: widget.chatController,
+                      builder: (context, _) {
+                        final isTyping = widget.chatController.isLoading;
+                        final hasError =
+                            widget.chatController.errorMessage != null &&
+                                !_hideControllerError;
 
-                            final hasError =
-                                widget.chatController.errorMessage != null &&
-                                    !_hideControllerError;
+                        if (_initializingChat) {
+                          return const Center(
+                            child: AITypingLoader(),
+                          );
+                        }
 
-                            return StreamBuilder<List<Map<String, dynamic>>>(
-                              stream:
-                              _messagesStream ??
-                                  Stream.value([]),
-                              builder: (context, snapshot) {
-                                final docs = snapshot.data ?? [];
+                        if (_chatInitFailed) {
+                          return _buildInitError();
+                        }
 
-                                if (docs.length != _lastMessageCount) {
-                                  _lastMessageCount = docs.length;
+                        return StreamBuilder<List<Map<String, dynamic>>>(
+                          stream: _messagesStream,
+                          builder: (context, snapshot) {
+                            final docs = snapshot.data ?? [];
 
-                                  WidgetsBinding.instance
-                                      .addPostFrameCallback((_) {
-                                    _scrollToBottom();
-                                  });
+                            if (docs.length != _lastMessageCount) {
+                              _lastMessageCount = docs.length;
+                              _scrollToBottom();
+                            }
+
+                            if (docs.isEmpty && !isTyping && !hasError) {
+                              return _buildEmptyState();
+                            }
+
+                            return ListView.builder(
+                              controller: _scrollController,
+                              reverse: true,
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              itemCount: docs.length +
+                                  (isTyping ? 1 : 0) +
+                                  (hasError ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (isTyping && index == 0) {
+                                  return const Padding(
+                                    padding: EdgeInsets.only(bottom: 12),
+                                    child: AITypingLoader(),
+                                  );
                                 }
 
-                                if (docs.isEmpty && !isTyping && !hasError) {
-                                  return Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 28,
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(18),
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: Colors.white.withOpacity(
-                                                0.16,
-                                              ),
-                                              border: Border.all(
-                                                color: Colors.white.withOpacity(
-                                                  0.22,
-                                                ),
-                                              ),
-                                            ),
-                                            child: const Icon(
-                                              Icons.auto_awesome_rounded,
-                                              color: Colors.white,
-                                              size: 34,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 18),
-                                          Text(
-                                            "Start sharing what’s on your mind ✨",
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(
-                                                0.88,
-                                              ),
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            "Chhotu is here to listen and support you.",
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(
-                                                0.68,
-                                              ),
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                if (hasError && index == (isTyping ? 1 : 0)) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: ChatErrorBubble(
+                                      onRetry: () {
+                                        setState(() {
+                                          _hideControllerError = true;
+                                        });
+                                      },
                                     ),
                                   );
                                 }
 
-                                return ListView.builder(
-                                  controller: _scrollController,
-                                  reverse: true,
-                                  keyboardDismissBehavior:
-                                      ScrollViewKeyboardDismissBehavior.onDrag,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
+                                int adjustedIndex = index;
+
+                                if (isTyping) {
+                                  adjustedIndex--;
+                                }
+
+                                if (hasError) {
+                                  adjustedIndex--;
+                                }
+
+                                if (adjustedIndex < 0 ||
+                                    adjustedIndex >= docs.length) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final data = docs[adjustedIndex];
+                                final isUser = data['sender'] == "user";
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: ChatBubble(
+                                    isUser: isUser,
+                                    text: data['text'] ?? '',
+                                    onLongPress: isUser
+                                        ? () => _showMessageOptions(data)
+                                        : null,
                                   ),
-                                  itemCount: docs.length +
-                                      (isTyping ? 1 : 0) +
-                                      (hasError ? 1 : 0),
-                                  itemBuilder: (context, index) {
-                                    if (isTyping && index == 0) {
-                                      return const Padding(
-                                        padding: EdgeInsets.only(bottom: 12),
-                                        child: AITypingLoader(),
-                                      );
-                                    }
-
-                                    if (hasError &&
-                                        index == (isTyping ? 1 : 0)) {
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 12),
-                                        child: ChatErrorBubble(
-                                          onRetry: () {
-                                            setState(() {
-                                              _hideControllerError = true;
-                                            });
-                                          },
-                                        ),
-                                      );
-                                    }
-
-                                    int adjustedIndex = index;
-
-                                    if (isTyping) {
-                                      adjustedIndex--;
-                                    }
-
-                                    if (hasError) {
-                                      adjustedIndex--;
-                                    }
-
-                                    if (adjustedIndex < 0 ||
-                                        adjustedIndex >= docs.length) {
-                                      return const SizedBox.shrink();
-                                    }
-
-                                    final data =
-                                        docs[docs.length - 1 - adjustedIndex];
-
-                                    final isUser = data['sender'] == "user";
-
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: ChatBubble(
-                                        isUser: isUser,
-                                        text: data['text'] ?? '',
-                                        onLongPress: isUser
-                                            ? () => _showMessageOptions(data)
-                                            : null,
-                                      )
-                                          .animate()
-                                          .fade(
-                                            duration: const Duration(
-                                              milliseconds: 350,
-                                            ),
-                                          )
-                                          .slideY(
-                                            begin: 0.25,
-                                            end: 0,
-                                            curve: Curves.easeOut,
-                                            duration: const Duration(
-                                              milliseconds: 350,
-                                            ),
-                                          ),
-                                    );
-                                  },
                                 );
                               },
                             );
                           },
-                        ),
+                        );
+                      },
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
                       ),
-                      Container(
-                        margin: const EdgeInsets.all(12),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: widget.moodColor.withOpacity(0.15),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            enabled: !_initializingChat &&
+                                !_chatInitFailed &&
+                                _chatId != null,
+                            style: const TextStyle(color: Colors.white),
+                            minLines: 1,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) {
+                              _sendMessage(_messageController.text);
+                            },
+                            decoration: InputDecoration(
+                              hintText: _initializingChat
+                                  ? "Preparing chat..."
+                                  : "Tell Chhotu what's on your mind...",
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.65),
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
                             ),
-                          ],
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                style: const TextStyle(color: Colors.white),
-                                minLines: 1,
-                                maxLines: 4,
-                                textInputAction: TextInputAction.send,
-                                onSubmitted: (_) {
-                                  _sendMessage(
-                                    _messageController.text,
-                                  );
-                                },
-                                decoration: InputDecoration(
-                                  hintText:
-                                      "Tell Chhotu what's on your mind...",
-                                  hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.65),
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
+                        const SizedBox(width: 8),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _messageController,
+                          builder: (context, value, _) {
+                            final canSend = value.text.trim().isNotEmpty &&
+                                !widget.chatController.isLoading &&
+                                !_initializingChat &&
+                                !_chatInitFailed &&
+                                _chatId != null;
+
+                            return GestureDetector(
+                              onTapDown: canSend
+                                  ? (_) {
+                                      setState(() {
+                                        _pressed = true;
+                                      });
+                                    }
+                                  : null,
+                              onTapUp: canSend
+                                  ? (_) {
+                                      setState(() {
+                                        _pressed = false;
+                                      });
+                                    }
+                                  : null,
+                              onTapCancel: canSend
+                                  ? () {
+                                      setState(() {
+                                        _pressed = false;
+                                      });
+                                    }
+                                  : null,
+                              onTap: canSend
+                                  ? () {
+                                      _sendMessage(_messageController.text);
+                                    }
+                                  : null,
+                              child: AnimatedOpacity(
+                                opacity: canSend ? 1 : 0.45,
+                                duration: const Duration(milliseconds: 180),
+                                child: AnimatedScale(
+                                  scale: _pressed ? 0.88 : 1,
+                                  duration: const Duration(milliseconds: 120),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          widget.moodColor,
+                                          widget.moodColor.withOpacity(0.7),
+                                        ],
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.send_rounded,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: _messageController,
-                              builder: (context, value, _) {
-                                final canSend = value.text.trim().isNotEmpty &&
-                                    !widget.chatController.isLoading &&
-                                    _chatId != null;
-
-                                return GestureDetector(
-                                  onTapDown: canSend
-                                      ? (_) {
-                                          setState(() {
-                                            _pressed = true;
-                                          });
-                                        }
-                                      : null,
-                                  onTapUp: canSend
-                                      ? (_) {
-                                          setState(() {
-                                            _pressed = false;
-                                          });
-                                        }
-                                      : null,
-                                  onTapCancel: canSend
-                                      ? () {
-                                          setState(() {
-                                            _pressed = false;
-                                          });
-                                        }
-                                      : null,
-                                  onTap: canSend
-                                      ? () {
-                                          _sendMessage(
-                                            _messageController.text,
-                                          );
-                                        }
-                                      : null,
-                                  child: AnimatedOpacity(
-                                    opacity: canSend ? 1 : 0.45,
-                                    duration: const Duration(
-                                      milliseconds: 180,
-                                    ),
-                                    child: AnimatedScale(
-                                      scale: _pressed ? 0.88 : 1,
-                                      duration: const Duration(
-                                        milliseconds: 120,
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              widget.moodColor,
-                                              widget.moodColor.withOpacity(
-                                                0.7,
-                                              ),
-                                            ],
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: widget.moodColor
-                                                  .withOpacity(0.35),
-                                              blurRadius: 18,
-                                              offset: const Offset(0, 5),
-                                            ),
-                                          ],
-                                        ),
-                                        child: const Icon(
-                                          Icons.send_rounded,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },

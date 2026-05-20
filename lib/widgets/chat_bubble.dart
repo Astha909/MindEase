@@ -17,22 +17,24 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxBubbleWidth = MediaQuery.of(context).size.width * 0.78;
+
     final bubble = Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(
-          vertical: 8,
+          vertical: 6,
           horizontal: 4,
         ),
-        constraints: const BoxConstraints(
-          maxWidth: 290,
+        constraints: BoxConstraints(
+          maxWidth: maxBubbleWidth,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(26),
           child: BackdropFilter(
             filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
+              sigmaX: 6,
+              sigmaY: 6,
             ),
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -46,45 +48,31 @@ class ChatBubble extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          const Color(
-                            0xFF7B61FF,
-                          ).withOpacity(0.95),
-                          const Color(
-                            0xFF5B8CFF,
-                          ).withOpacity(0.92),
+                          const Color(0xFF7B61FF).withOpacity(0.95),
+                          const Color(0xFF5B8CFF).withOpacity(0.92),
                         ],
                       )
                     : LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.white.withOpacity(
-                            0.65,
-                          ),
-                          Colors.white.withOpacity(
-                            0.35,
-                          ),
+                          Colors.white.withOpacity(0.65),
+                          Colors.white.withOpacity(0.35),
                         ],
                       ),
                 border: Border.all(
                   color: isUser
-                      ? Colors.white.withOpacity(
-                          0.15,
-                        )
-                      : Colors.white.withOpacity(
-                          0.45,
-                        ),
+                      ? Colors.white.withOpacity(0.15)
+                      : Colors.white.withOpacity(0.45),
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: isUser
-                        ? Colors.deepPurple.withOpacity(0.22)
-                        : Colors.black.withOpacity(
-                            0.05,
-                          ),
-                    blurRadius: 18,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 6),
+                        ? Colors.deepPurple.withOpacity(0.18)
+                        : Colors.black.withOpacity(0.04),
+                    blurRadius: 14,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 5),
                   ),
                 ],
               ),
@@ -106,19 +94,13 @@ class ChatBubble extends StatelessWidget {
     final animatedBubble = bubble
         .animate()
         .fade(
-          duration: 350.ms,
+          duration: 250.ms,
         )
         .slideY(
-          begin: 0.18,
+          begin: 0.12,
           end: 0,
           curve: Curves.easeOutCubic,
-          duration: 350.ms,
-        )
-        .scale(
-          begin: const Offset(0.96, 0.96),
-          end: const Offset(1, 1),
-          duration: 350.ms,
-          curve: Curves.easeOut,
+          duration: 250.ms,
         );
 
     if (isUser) {
