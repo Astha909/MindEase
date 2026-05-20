@@ -342,7 +342,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                                  const ForgotPasswordScreen(),
+                                                  ForgotPasswordScreen(
+                                                authController: authController,
+                                              ),
                                             ),
                                           );
                                         },
