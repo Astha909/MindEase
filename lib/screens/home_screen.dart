@@ -22,8 +22,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final HomeController _homeController;
 
+  int _selectedIndex = 0;
+
   String currentMood = "Happy";
   Color currentMoodColor = Colors.green;
+
+  bool _isProfileOpening = false;
 
   @override
   void initState() {
@@ -32,14 +36,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void updateMood(String mood, Color color) {
+    if (!mounted) return;
+
     setState(() {
       currentMood = mood;
       currentMoodColor = color;
     });
   }
 
-  void _openProfile() {
-    Navigator.push(
+  Future<void> _openProfile() async {
+    if (_isProfileOpening) return;
+
+    setState(() {
+      _isProfileOpening = true;
+    });
+
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ProfileScreen(
@@ -47,6 +59,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isProfileOpening = false;
+    });
+  }
+
+  void _changeTab(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    _homeController.changeTab(index);
   }
 
   @override
@@ -57,36 +85,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _homeController,
-      builder: (context, _) {
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          extendBody: true,
-          body: IndexedStack(
-            index: _homeController.selectedIndex,
-            children: [
-              ChatScreen(
-                chatController: _homeController.chatController,
-                userId: widget.userId,
-                mood: currentMood,
-                moodColor: currentMoodColor,
-                onProfileTap: _openProfile,
-              ),
-              MoodScreen(
-                userId: widget.userId,
-                wellnessController: _homeController.wellnessController,
-                onMoodChanged: updateMood,
-              ),
-              EmergencyScreen(
-                userId: widget.userId,
-                emergencyController: _homeController.emergencyController,
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBody: true,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          ChatScreen(
+            chatController: _homeController.chatController,
+            userId: widget.userId,
+            mood: currentMood,
+            moodColor: currentMoodColor,
+            onProfileTap: _openProfile,
           ),
-          bottomNavigationBar: _buildBottomNav(),
-        );
-      },
+          MoodScreen(
+            userId: widget.userId,
+            wellnessController: _homeController.wellnessController,
+            onMoodChanged: updateMood,
+          ),
+          EmergencyScreen(
+            userId: widget.userId,
+            emergencyController: _homeController.emergencyController,
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -106,12 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BottomNavigationBar(
-          currentIndex: _homeController.selectedIndex,
-          onTap: (index) {
-            if (index == _homeController.selectedIndex) return;
-
-            _homeController.changeTab(index);
-          },
+          currentIndex: _selectedIndex,
+          onTap: _changeTab,
           selectedItemColor: currentMoodColor,
           unselectedItemColor: Colors.grey,
           backgroundColor: Colors.white.withOpacity(0.94),

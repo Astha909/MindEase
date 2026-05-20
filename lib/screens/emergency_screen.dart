@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../controllers/emergency_controller.dart';
+import 'emergency_logs_screen.dart';
 
 class EmergencyScreen extends StatefulWidget {
   final String userId;
@@ -385,6 +386,46 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                 ),
                               ),
                               const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(
+                                    Icons.history,
+                                    color: Colors.white,
+                                  ),
+                                  label: const Text(
+                                    "View Emergency Logs",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Colors.white.withOpacity(0.35),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EmergencyLogsScreen(
+                                          userId: widget.userId,
+                                          emergencyController:
+                                              widget.emergencyController,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 16),
                               Expanded(
                                 child: StreamBuilder(
                                   stream: widget.emergencyController
