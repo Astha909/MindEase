@@ -10,7 +10,8 @@ class MockAIProvider implements AIProvider {
     if (lower.contains("anxious")) {
       return {
         "mood": "anxious",
-        "chat_reply": "I can sense you're feeling anxious. Let’s slow down together 🫁",
+        "chat_reply":
+            "I can sense you're feeling anxious. Let’s slow down together 🫁",
         "tips": [],
         "activity": ""
       };
@@ -28,7 +29,8 @@ class MockAIProvider implements AIProvider {
     if (lower.contains("overwhelmed")) {
       return {
         "mood": "overwhelmed",
-        "chat_reply": "That sounds overwhelming. Let’s break it into small steps 🧩",
+        "chat_reply":
+            "That sounds overwhelming. Let’s break it into small steps 🧩",
         "tips": [],
         "activity": ""
       };

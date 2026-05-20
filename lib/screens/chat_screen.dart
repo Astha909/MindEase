@@ -138,22 +138,28 @@ class _ChatScreenState extends State<ChatScreen>
   Future<void> _sendMessage(String text) async {
     final message = text.trim();
 
-    if (message.isEmpty || _chatId == null || widget.chatController.isLoading) {
+    if (message.isEmpty ||
+        _chatId == null ||
+        widget.chatController.isLoading) {
       return;
     }
-
-    _messageController.clear();
 
     setState(() {
       _pressed = false;
       _hideControllerError = false;
     });
 
+    widget.chatController.clearError();
+
     await widget.chatController.handleMessage(
       chatId: _chatId!,
       userId: widget.userId,
       message: message,
     );
+
+    if (widget.chatController.errorMessage == null) {
+      _messageController.clear();
+    }
 
     _scrollToBottom();
   }

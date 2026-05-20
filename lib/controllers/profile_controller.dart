@@ -67,6 +67,7 @@ class ProfileController extends ChangeNotifier {
       _setLoading(false);
     }
   }
+
   /// DELETE ACCOUNT
   Future<void> deleteAccount() async {
     _setLoading(true);

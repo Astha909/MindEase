@@ -34,7 +34,8 @@ class _AppRootState extends State<AppRoot> {
       stream: authController.authUserIdStream,
       builder: (context, snapshot) {
         // Keep splash until Firebase is ready
-        if (_showSplash || snapshot.connectionState == ConnectionState.waiting) {
+        if (_showSplash ||
+            snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
         }
 

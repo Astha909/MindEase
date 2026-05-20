@@ -6,7 +6,6 @@ import 'wellness_controller.dart';
 import 'emergency_controller.dart';
 
 class HomeController extends ChangeNotifier {
-
   late final EmergencyController emergencyController;
   late final ChatController chatController;
   late final WellnessController wellnessController;

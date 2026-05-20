@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-
 bool _isValidEmail(String email) {
   final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
   return emailRegex.hasMatch(email);
@@ -37,8 +36,7 @@ class AuthService {
     }
 
     try {
-      final userCredential =
-      await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -49,7 +47,6 @@ class AuthService {
       }
 
       return user;
-
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Registration failed");
     }
@@ -65,8 +62,7 @@ class AuthService {
     }
 
     try {
-      final userCredential =
-      await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -83,7 +79,6 @@ class AuthService {
       }
 
       return user;
-
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Login failed");
     }
@@ -108,7 +103,6 @@ class AuthService {
     }
   }
 
-
 // GOOGLE SIGN-IN
   Future<User?> signInWithGoogle() async {
     try {
@@ -116,31 +110,28 @@ class AuthService {
 
       await googleSignIn.signOut(); // 🔥 force account picker
 
-      final GoogleSignInAccount? googleUser =
-      await googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
         return null;
       }
 
       final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+          await googleUser.authentication;
 
-      final OAuthCredential credential =
-      GoogleAuthProvider.credential(
+      final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       final UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
+          await _auth.signInWithCredential(credential);
 
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Google Sign-In failed");
     }
   }
-
 
   // LOGOUT
   Future<void> logout() async {
@@ -165,6 +156,4 @@ class AuthService {
       throw Exception(e.message ?? "Failed to send verification email");
     }
   }
-
-
 }

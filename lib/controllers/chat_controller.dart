@@ -26,13 +26,12 @@ class ChatController extends ChangeNotifier {
         _emergencyController = emergencyController ?? EmergencyController(),
         _aiService = aiService ?? AIService(GeminiProvider()),
         _wellnessService = wellnessService ?? WellnessService() {
-          _initLocalClassifier();
-        }
+    _initLocalClassifier();
+  }
 
   Future<void> _initLocalClassifier() async {
     await _localClassifier.loadModel();
   }
-
 
   void _setLoading(bool value) {
     isLoading = value;
@@ -42,6 +41,10 @@ class ChatController extends ChangeNotifier {
   void _setError(String? message) {
     errorMessage = message;
     notifyListeners();
+  }
+
+  void clearError() {
+    _setError(null);
   }
 
   String _normalizeMoodWords(String input) {
@@ -54,6 +57,7 @@ class ChatController extends ChangeNotifier {
 
     return normalized;
   }
+
   Future<String> getOrCreateChat(String userId) {
     return _chatService.getOrCreateChat(userId);
   }
@@ -119,7 +123,6 @@ class ChatController extends ChangeNotifier {
     _setError(null);
 
     try {
-
       // Fetch prior conversation BEFORE saving current turn
       await _chatService.sendMessage(
         chatId: chatId,
@@ -128,11 +131,9 @@ class ChatController extends ChangeNotifier {
         text: message,
       );
 
-      final history =
-      await _chatService.getRecentConversation(chatId);
+      final history = await _chatService.getRecentConversation(chatId);
 
       Map<String, dynamic> aiResult = {};
-
 
       final normalizedMessage = _normalizeMoodWords(message);
       final localMood = _localClassifier.predict(normalizedMessage);
@@ -143,7 +144,8 @@ class ChatController extends ChangeNotifier {
         debugPrint("⚠️ High-risk mood detected: $localMood");
       }
       // 🚨 Local emergency pre-check before AI
-      final emergencyKeywords = _emergencyController.checkEmergencyKeywords(normalizedMessage);
+      final emergencyKeywords =
+          _emergencyController.checkEmergencyKeywords(normalizedMessage);
 
       if (emergencyKeywords.isNotEmpty) {
         await _emergencyController.triggerEmergency(
@@ -158,14 +160,14 @@ class ChatController extends ChangeNotifier {
           chatId: chatId,
           userId: userId,
           sender: "ai",
-          text: "I’m really concerned about what you shared. You are not alone. "
+          text:
+              "I’m really concerned about what you shared. You are not alone. "
               "Please contact local emergency services right now or reach out to a trusted person nearby.",
         );
 
         return;
       }
       try {
-
         final memoryPrompt = """
           Mood: $localMood
           
@@ -178,7 +180,7 @@ class ChatController extends ChangeNotifier {
         aiResult = await _aiService
             .getReply(memoryPrompt)
             .timeout(const Duration(seconds: 15));
-      } catch (e){
+      } catch (e) {
         debugPrint("AI error: $e");
         aiResult = {
           "chat_reply": "I'm here with you. Tell me more.",
@@ -188,19 +190,14 @@ class ChatController extends ChangeNotifier {
 
       final mood = localMood;
 
-      final chatReply =
-          aiResult["chat_reply"]?.toString() ?? "";
+      final chatReply = aiResult["chat_reply"]?.toString() ?? "";
 
-      final crisisLevel =
-          aiResult["crisis_level"]?.toString() ?? "none";
+      final crisisLevel = aiResult["crisis_level"]?.toString() ?? "none";
 
 // 📚 Tips & activities from WellnessService
-      final tips =
-      await _wellnessService.getTipsForMood(mood);
+      final tips = await _wellnessService.getTipsForMood(mood);
 
-      final activity =
-      await _wellnessService.getActivityForMood(mood);
-
+      final activity = await _wellnessService.getActivityForMood(mood);
 
 // 🚨 Severe-only escalation
       if (crisisLevel == "severe") {
