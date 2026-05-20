@@ -19,16 +19,19 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
+    // 🔥 Slower smooth animation
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 2600),
     );
 
+    // 🔥 Movement animation
     _moveAnimation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
 
+    // 🔥 Scale animation
     _scaleAnimation = Tween<double>(
       begin: 0.65,
       end: 1.0,
@@ -39,6 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
+    // 🔥 Fade animation
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -49,9 +53,8 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _controller.forward();
-
-    Future.delayed(const Duration(seconds: 3), () {
+    // 🔥 Start animation then navigate automatically
+    _controller.forward().then((_) {
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -71,10 +74,14 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    const double logoSize = 135;
+    const double logoSize = 145;
 
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
+
+        // 🔥 Background matching logo colors
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -87,17 +94,47 @@ class _SplashScreenState extends State<SplashScreen>
             ],
           ),
         ),
+
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final double startLeft = -logoSize * 0.75;
-            final double startTop = constraints.maxHeight - logoSize * 1.15;
+            // 🔥 Start from bottom-left outside screen
+            final double startLeft = -logoSize;
 
+            final double startTop = constraints.maxHeight - logoSize - 60;
+
+            // 🔥 End at center
             final double endLeft = (constraints.maxWidth - logoSize) / 2;
 
             final double endTop = (constraints.maxHeight - logoSize) / 2;
 
             return Stack(
               children: [
+                // ✨ Small stars effect
+                Positioned(
+                  top: 120,
+                  left: 50,
+                  child: _buildStar(4),
+                ),
+
+                Positioned(
+                  top: 200,
+                  right: 70,
+                  child: _buildStar(3),
+                ),
+
+                Positioned(
+                  bottom: 180,
+                  left: 80,
+                  child: _buildStar(5),
+                ),
+
+                Positioned(
+                  bottom: 250,
+                  right: 40,
+                  child: _buildStar(3),
+                ),
+
+                // 🔥 Main animated logo
                 AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
@@ -119,17 +156,47 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     );
                   },
-                  child: Image.asset(
-                    'assets/images/logo.png',
+                  child: Container(
                     width: logoSize,
                     height: logoSize,
-                    fit: BoxFit.contain,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purpleAccent.withOpacity(0.35),
+                          blurRadius: 35,
+                          spreadRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/icon.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  // ✨ Tiny glowing stars
+  Widget _buildStar(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withOpacity(0.6),
+            blurRadius: 8,
+          ),
+        ],
       ),
     );
   }
