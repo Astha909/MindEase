@@ -20,69 +20,54 @@ class ChatErrorBubble extends StatelessWidget {
           horizontal: 4,
         ),
         constraints: BoxConstraints(
-          maxWidth:
-          MediaQuery.of(context).size.width *
-              0.78,
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         child: ClipRRect(
-          borderRadius:
-          BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(22),
           child: BackdropFilter(
             filter: ImageFilter.blur(
               sigmaX: 6,
               sigmaY: 6,
             ),
             child: Container(
-              padding:
-              const EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 12,
               ),
               decoration: BoxDecoration(
-                borderRadius:
-                BorderRadius.circular(22),
-                color: Colors.red.shade50
-                    .withOpacity(0.9),
+                borderRadius: BorderRadius.circular(22),
+                color: Colors.red.shade50.withOpacity(0.95),
                 border: Border.all(
-                  color:
-                  Colors.red.shade100,
+                  color: Colors.red.shade100,
                 ),
               ),
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     "Something went wrong 😔",
                     style: TextStyle(
                       color: Colors.red,
-                      fontWeight:
-                      FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   GestureDetector(
                     onTap: onRetry,
                     child: const Row(
-                      mainAxisSize:
-                      MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.refresh,
                           size: 16,
                           color: Colors.blue,
                         ),
-
                         SizedBox(width: 6),
-
                         Text(
                           "Retry",
                           style: TextStyle(
                             color: Colors.blue,
-                            fontWeight:
-                            FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],

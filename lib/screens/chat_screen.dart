@@ -40,6 +40,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _pressed = false;
   bool _hideControllerError = false;
 
+  String? _lastFailedMessage;
   int _lastMessageCount = 0;
 
   @override
@@ -55,12 +56,11 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Future<void> _initChat() async {
-    if (mounted) {
-      setState(() {
-        _initializingChat = true;
-        _chatInitFailed = false;
-      });
-    }
+    setState(() {
+      _initializingChat = true;
+      _chatInitFailed = false;
+      _hideControllerError = false;
+    });
 
     try {
       final id = await widget.chatController.getOrCreateChat(widget.userId);
@@ -135,21 +135,25 @@ class _ChatScreenState extends State<ChatScreen>
     }
   }
 
-  Future<void> _sendMessage(String text) async {
+  Future<void> _sendMessage(
+    String text, {
+    bool keepTextOnFailure = true,
+  }) async {
     final message = text.trim();
 
-    if (message.isEmpty ||
-        _chatId == null ||
-        widget.chatController.isLoading) {
+    if (message.isEmpty || _chatId == null || widget.chatController.isLoading) {
       return;
     }
 
     setState(() {
       _pressed = false;
       _hideControllerError = false;
+      _lastFailedMessage = message;
     });
 
     widget.chatController.clearError();
+
+    _messageController.clear();
 
     await widget.chatController.handleMessage(
       chatId: _chatId!,
@@ -157,11 +161,36 @@ class _ChatScreenState extends State<ChatScreen>
       message: message,
     );
 
+    if (!mounted) return;
+
     if (widget.chatController.errorMessage == null) {
-      _messageController.clear();
+      setState(() {
+        _lastFailedMessage = null;
+      });
+    } else if (keepTextOnFailure) {
+      _messageController.text = message;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
     }
 
     _scrollToBottom();
+  }
+
+  Future<void> _retryLastMessage() async {
+    final failed = _lastFailedMessage;
+
+    if (failed == null || failed.trim().isEmpty) {
+      setState(() {
+        _hideControllerError = true;
+      });
+      return;
+    }
+
+    await _sendMessage(
+      failed,
+      keepTextOnFailure: true,
+    );
   }
 
   void _scrollToBottom() {
@@ -483,222 +512,279 @@ class _ChatScreenState extends State<ChatScreen>
                 colors: getMoodGradient(),
               ),
             ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: widget.chatController,
-                      builder: (context, _) {
-                        final isTyping = widget.chatController.isLoading;
-                        final hasError =
-                            widget.chatController.errorMessage != null &&
-                                !_hideControllerError;
+            child: Stack(
+              children: [
+                Positioned(
+                  top: -80,
+                  right: -60,
+                  child: Container(
+                    width: 250,
+                    height: 250,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          widget.moodColor.withOpacity(0.28),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: -100,
+                  left: -60,
+                  child: Container(
+                    width: 280,
+                    height: 280,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          widget.moodColor.withOpacity(0.20),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: AnimatedBuilder(
+                          animation: widget.chatController,
+                          builder: (context, _) {
+                            final isTyping = widget.chatController.isLoading;
 
-                        if (_initializingChat) {
-                          return const Center(
-                            child: AITypingLoader(),
-                          );
-                        }
+                            final hasError =
+                                widget.chatController.errorMessage != null &&
+                                    !_hideControllerError;
 
-                        if (_chatInitFailed) {
-                          return _buildInitError();
-                        }
-
-                        return StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: _messagesStream,
-                          builder: (context, snapshot) {
-                            final docs = snapshot.data ?? [];
-
-                            if (docs.length != _lastMessageCount) {
-                              _lastMessageCount = docs.length;
-                              _scrollToBottom();
+                            if (_initializingChat) {
+                              return const Center(
+                                child: AITypingLoader(),
+                              );
                             }
 
-                            if (docs.isEmpty && !isTyping && !hasError) {
-                              return _buildEmptyState();
+                            if (_chatInitFailed) {
+                              return _buildInitError();
                             }
 
-                            return ListView.builder(
-                              controller: _scrollController,
-                              reverse: true,
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.onDrag,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              itemCount: docs.length +
-                                  (isTyping ? 1 : 0) +
-                                  (hasError ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (isTyping && index == 0) {
-                                  return const Padding(
-                                    padding: EdgeInsets.only(bottom: 12),
-                                    child: AITypingLoader(),
-                                  );
+                            return StreamBuilder<List<Map<String, dynamic>>>(
+                              stream: _messagesStream,
+                              builder: (context, snapshot) {
+                                final docs = snapshot.data ?? [];
+
+                                if (docs.length != _lastMessageCount) {
+                                  _lastMessageCount = docs.length;
+                                  _scrollToBottom();
                                 }
 
-                                if (hasError && index == (isTyping ? 1 : 0)) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: ChatErrorBubble(
-                                      onRetry: () {
-                                        setState(() {
-                                          _hideControllerError = true;
-                                        });
-                                      },
-                                    ),
-                                  );
+                                if (docs.isEmpty && !isTyping && !hasError) {
+                                  return _buildEmptyState();
                                 }
 
-                                int adjustedIndex = index;
-
-                                if (isTyping) {
-                                  adjustedIndex--;
-                                }
-
-                                if (hasError) {
-                                  adjustedIndex--;
-                                }
-
-                                if (adjustedIndex < 0 ||
-                                    adjustedIndex >= docs.length) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                final data = docs[adjustedIndex];
-                                final isUser = data['sender'] == "user";
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: ChatBubble(
-                                    isUser: isUser,
-                                    text: data['text'] ?? '',
-                                    onLongPress: isUser
-                                        ? () => _showMessageOptions(data)
-                                        : null,
+                                return ListView.builder(
+                                  controller: _scrollController,
+                                  reverse: true,
+                                  keyboardDismissBehavior:
+                                      ScrollViewKeyboardDismissBehavior.onDrag,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
                                   ),
+                                  itemCount: docs.length +
+                                      (isTyping ? 1 : 0) +
+                                      (hasError ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (isTyping && index == 0) {
+                                      return const Padding(
+                                        padding: EdgeInsets.only(bottom: 12),
+                                        child: AITypingLoader(),
+                                      );
+                                    }
+
+                                    if (hasError &&
+                                        index == (isTyping ? 1 : 0)) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: ChatErrorBubble(
+                                          onRetry: _retryLastMessage,
+                                        ),
+                                      );
+                                    }
+
+                                    int adjustedIndex = index;
+
+                                    if (isTyping) adjustedIndex--;
+                                    if (hasError) adjustedIndex--;
+
+                                    if (adjustedIndex < 0 ||
+                                        adjustedIndex >= docs.length) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    final data = docs[adjustedIndex];
+                                    final isUser = data['sender'] == "user";
+
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
+                                      child: ChatBubble(
+                                        isUser: isUser,
+                                        text: data['text'] ?? '',
+                                        onLongPress: isUser
+                                            ? () => _showMessageOptions(data)
+                                            : null,
+                                      ),
+                                    );
+                                  },
                                 );
                               },
                             );
                           },
-                        );
-                      },
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            enabled: !_initializingChat &&
-                                !_chatInitFailed &&
-                                _chatId != null,
-                            style: const TextStyle(color: Colors.white),
-                            minLines: 1,
-                            maxLines: 4,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) {
-                              _sendMessage(_messageController.text);
-                            },
-                            decoration: InputDecoration(
-                              hintText: _initializingChat
-                                  ? "Preparing chat..."
-                                  : "Tell Chhotu what's on your mind...",
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.65),
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
                         ),
-                        const SizedBox(width: 8),
-                        ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: _messageController,
-                          builder: (context, value, _) {
-                            final canSend = value.text.trim().isNotEmpty &&
-                                !widget.chatController.isLoading &&
-                                !_initializingChat &&
-                                !_chatInitFailed &&
-                                _chatId != null;
-
-                            return GestureDetector(
-                              onTapDown: canSend
-                                  ? (_) {
-                                      setState(() {
-                                        _pressed = true;
-                                      });
-                                    }
-                                  : null,
-                              onTapUp: canSend
-                                  ? (_) {
-                                      setState(() {
-                                        _pressed = false;
-                                      });
-                                    }
-                                  : null,
-                              onTapCancel: canSend
-                                  ? () {
-                                      setState(() {
-                                        _pressed = false;
-                                      });
-                                    }
-                                  : null,
-                              onTap: canSend
-                                  ? () {
-                                      _sendMessage(_messageController.text);
-                                    }
-                                  : null,
-                              child: AnimatedOpacity(
-                                opacity: canSend ? 1 : 0.45,
-                                duration: const Duration(milliseconds: 180),
-                                child: AnimatedScale(
-                                  scale: _pressed ? 0.88 : 1,
-                                  duration: const Duration(milliseconds: 120),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          widget.moodColor,
-                                          widget.moodColor.withOpacity(0.7),
-                                        ],
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.send_rounded,
-                                      color: Colors.white,
-                                    ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.moodColor.withOpacity(0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _messageController,
+                                enabled: !_initializingChat &&
+                                    !_chatInitFailed &&
+                                    _chatId != null,
+                                style: const TextStyle(color: Colors.white),
+                                minLines: 1,
+                                maxLines: 4,
+                                textInputAction: TextInputAction.send,
+                                onSubmitted: (_) {
+                                  _sendMessage(_messageController.text);
+                                },
+                                decoration: InputDecoration(
+                                  hintText: _initializingChat
+                                      ? "Preparing chat..."
+                                      : "Tell Chhotu what's on your mind...",
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.65),
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
                                   ),
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                            const SizedBox(width: 8),
+                            ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: _messageController,
+                              builder: (context, value, _) {
+                                final canSend = value.text.trim().isNotEmpty &&
+                                    !widget.chatController.isLoading &&
+                                    !_initializingChat &&
+                                    !_chatInitFailed &&
+                                    _chatId != null;
+
+                                return GestureDetector(
+                                  onTapDown: canSend
+                                      ? (_) {
+                                          setState(() {
+                                            _pressed = true;
+                                          });
+                                        }
+                                      : null,
+                                  onTapUp: canSend
+                                      ? (_) {
+                                          setState(() {
+                                            _pressed = false;
+                                          });
+                                        }
+                                      : null,
+                                  onTapCancel: canSend
+                                      ? () {
+                                          setState(() {
+                                            _pressed = false;
+                                          });
+                                        }
+                                      : null,
+                                  onTap: canSend
+                                      ? () {
+                                          _sendMessage(
+                                            _messageController.text,
+                                          );
+                                        }
+                                      : null,
+                                  child: AnimatedOpacity(
+                                    opacity: canSend ? 1 : 0.45,
+                                    duration: const Duration(
+                                      milliseconds: 180,
+                                    ),
+                                    child: AnimatedScale(
+                                      scale: _pressed ? 0.88 : 1,
+                                      duration: const Duration(
+                                        milliseconds: 120,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              widget.moodColor,
+                                              widget.moodColor.withOpacity(
+                                                0.7,
+                                              ),
+                                            ],
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: widget.moodColor
+                                                  .withOpacity(0.35),
+                                              blurRadius: 18,
+                                              offset: const Offset(0, 5),
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Icon(
+                                          Icons.send_rounded,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
