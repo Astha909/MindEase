@@ -1,232 +1,323 @@
 // ignore_for_file: avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 
 class ChatService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+final FirebaseFirestore _firestore =
+FirebaseFirestore.instance;
 
+// AES encryption setup
+final _key = encrypt.Key.fromUtf8(
+'12345678901234567890123456789012',
+);
 
-  // Temporary simplified encryption
-  String _encrypt(String text) => text;
+final _iv = encrypt.IV.fromLength(16);
 
+late final encrypt.Encrypter _aes =
+encrypt.Encrypter(
+encrypt.AES(_key),
+);
 
-  String _decrypt(String text) {
-    return String.fromCharCodes(
-      text.runes.toList().reversed,
-    );
-  }
-  // 1. Create or get chat
-  Future<String> getOrCreateChat(String userId) async {
-    print("🔎 getOrCreateChat started for user: $userId");
+// Encrypt before Firestore storage
+String _encrypt(String text) {
+return _aes.encrypt(
+text,
+iv: _iv,
+).base64;
+}
 
-    final query = await _firestore
-        .collection('chats')
-        .where('userId', isEqualTo: userId)
-        .limit(1)
-        .get()
-        .timeout(const Duration(seconds: 10));
+// Decrypt before UI usage
+String _decrypt(String encryptedText) {
+try {
+return _aes.decrypt64(
+encryptedText,
+iv: _iv,
+);
+} catch (e) {
+print("Decrypt error: $e");
+return encryptedText;
+}
+}
 
-    print("📦 Query completed. Docs: ${query.docs.length}");
+// 1. Create or get chat
+Future<String> getOrCreateChat(
+String userId,
+) async {
+print(
+"🔎 getOrCreateChat started for user: $userId",
+);
 
-    if (query.docs.isNotEmpty) {
-      print("✅ Existing chat found");
-      return query.docs.first.id;
-    }
+final query = await _firestore
+    .collection('chats')
+    .where(
+'userId',
+isEqualTo: userId,
+)
+    .limit(1)
+    .get()
+    .timeout(
+const Duration(seconds: 10),
+);
 
-    print("🆕 Creating new chat");
+print(
+"📦 Query completed. Docs: ${query.docs.length}",
+);
 
-    final doc = await _firestore.collection('chats').add({
-      'userId': userId,
-      'lastMessage': '',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+if (query.docs.isNotEmpty) {
+print("✅ Existing chat found");
+return query.docs.first.id;
+}
 
-    print("🎉 Chat created: ${doc.id}");
+print("🆕 Creating new chat");
 
-    return doc.id;
-  }
+final doc = await _firestore
+    .collection('chats')
+    .add({
+'userId': userId,
+'lastMessage': _encrypt(''),
+'timestamp':
+FieldValue.serverTimestamp(),
+});
 
-  // 2. Send message
-  Future<void> sendMessage({
-    required String chatId,
-    required String userId,
-    required String sender,
-    required String text,
-    String? sentiment,
-    bool isCrisis = false,
-    String crisisLevel = "none",
-  }) async {
-    final messageRef = _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages');
+print("🎉 Chat created: ${doc.id}");
 
-    await messageRef.add({
-      'sender': sender,
-      'userId': userId,
-      'text': _encrypt(text),
-      'encrypted': true,
-      'timestamp': FieldValue.serverTimestamp(),
-      'sentiment': sentiment,
-      'isCrisis': isCrisis,
-      'crisisLevel': crisisLevel,
-    });
+return doc.id;
+}
 
-    await _firestore.collection('chats').doc(chatId).update({
-      'lastMessage': _encrypt(text),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
+// 2. Send message
+Future<void> sendMessage({
+required String chatId,
+required String userId,
+required String sender,
+required String text,
+String? sentiment,
+bool isCrisis = false,
+String crisisLevel = "none",
+}) async {
+final messageRef = _firestore
+    .collection('chats')
+    .doc(chatId)
+    .collection('messages');
 
-  Future<void> editMessage({
-    required String chatId,
-    required String messageId,
-    required String userId,
-    required String newText,
-  }) async {
-    final messageRef = _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(messageId);
+await messageRef.add({
+'sender': sender,
+'userId': userId,
+'text': _encrypt(text),
+'encrypted': true,
+'timestamp':
+FieldValue.serverTimestamp(),
+'sentiment': sentiment,
+'isCrisis': isCrisis,
+'crisisLevel': crisisLevel,
+});
 
-    final snapshot = await messageRef.get();
+await _firestore
+    .collection('chats')
+    .doc(chatId)
+    .update({
+'lastMessage': _encrypt(text),
+'updatedAt':
+FieldValue.serverTimestamp(),
+});
+}
 
-    if (!snapshot.exists) {
-      throw Exception("Message not found");
-    }
+Future<void> editMessage({
+required String chatId,
+required String messageId,
+required String userId,
+required String newText,
+}) async {
+final messageRef = _firestore
+    .collection('chats')
+    .doc(chatId)
+    .collection('messages')
+    .doc(messageId);
 
-    final data = snapshot.data();
+final snapshot =
+await messageRef.get();
 
-    if (data?['userId'] != userId) {
-      throw Exception("You can only edit your own message");
-    }
+if (!snapshot.exists) {
+throw Exception(
+"Message not found",
+);
+}
 
-    await messageRef.update({
-      'text': _encrypt(newText),
-      'edited': true,
-      'editedAt': FieldValue.serverTimestamp(),
-    });
-  }
+final data = snapshot.data();
 
-  Future<void> deleteMessage({
-    required String chatId,
-    required String messageId,
-    required String userId,
-  }) async {
-    final messageRef = _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(messageId);
+if (data?['userId'] != userId) {
+throw Exception(
+"You can only edit your own message",
+);
+}
 
-    final snapshot = await messageRef.get();
+await messageRef.update({
+'text': _encrypt(newText),
+'edited': true,
+'editedAt':
+FieldValue.serverTimestamp(),
+});
+}
 
-    if (!snapshot.exists) {
-      throw Exception("Message not found");
-    }
+Future<void> deleteMessage({
+required String chatId,
+required String messageId,
+required String userId,
+}) async {
+final messageRef = _firestore
+    .collection('chats')
+    .doc(chatId)
+    .collection('messages')
+    .doc(messageId);
 
-    final data = snapshot.data();
+final snapshot =
+await messageRef.get();
 
-    if (data?['userId'] != userId) {
-      throw Exception("You can only delete your own message");
-    }
+if (!snapshot.exists) {
+throw Exception(
+"Message not found",
+);
+}
 
-    await messageRef.delete();
-  }
+final data = snapshot.data();
 
-  // 3. Listen to messages
-  Stream<List<Map<String, dynamic>>> listenToMessages(String chatId) {
-    return _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .limit(50)
-        .snapshots()
-        .handleError((e) {
-      print("Firestore stream error: $e");
-    })
-        .map((snapshot) {
-      return snapshot.docs
-          .map((doc) {
-        final data = Map<String, dynamic>.from(doc.data());
+if (data?['userId'] != userId) {
+throw Exception(
+"You can only delete your own message",
+);
+}
 
-        if (data['timestamp'] == null) {
-          return null;
-        }
+await messageRef.delete();
+}
 
-        if (data['encrypted'] == true && data['text'] != null) {
-          try {
-            data['text'] = _decrypt(data['text']);
-          } catch (_) {
-            data['text'] = data['text']
-                .toString()
-                .split('')
-                .reversed
-                .join();
-          }
-        }
+// 3. Listen to messages
+Stream<List<Map<String, dynamic>>>
+listenToMessages(String chatId) {
+return _firestore
+    .collection('chats')
+    .doc(chatId)
+    .collection('messages')
+    .orderBy(
+'timestamp',
+descending: true,
+)
+    .limit(50)
+    .snapshots()
+    .handleError((e) {
+print(
+"Firestore stream error: $e",
+);
+}).map((snapshot) {
+return snapshot.docs
+    .map((doc) {
+final data =
+Map<String, dynamic>.from(
+doc.data(),
+);
 
-        data['id'] = doc.id;
-        return data;
-      })
-          .where((e) => e != null)
-          .cast<Map<String, dynamic>>()
-          .toList();
-    });
-  }
+if (data['timestamp'] ==
+null) {
+return null;
+}
 
-  // 4. Fetch messages with pagination
-  Future<QuerySnapshot> fetchMessages({
-    required String chatId,
-    Map<String, dynamic>? lastMessage,
-    int limit = 15,
-  }) async {
-    Query query = _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .limit(limit);
+if (data['encrypted'] ==
+true &&
+data['text'] != null) {
+data['text'] = _decrypt(
+data['text'],
+);
+}
 
-    if (lastMessage != null && lastMessage['timestamp'] != null) {
-      query = query.startAfter([lastMessage['timestamp']]);
-    }
+data['id'] = doc.id;
 
-    return await query
-        .get()
-        .timeout(const Duration(seconds: 10));
-  }
+return data;
+})
+    .where((e) => e != null)
+    .cast<Map<String, dynamic>>()
+    .toList();
+});
+}
 
-  Future<List<String>> getRecentConversation(
-      String chatId, {
-        int limit = 3,
-      }) async {
+// 4. Fetch messages with pagination
+Future<QuerySnapshot> fetchMessages({
+required String chatId,
+Map<String, dynamic>? lastMessage,
+int limit = 15,
+}) async {
+Query query = _firestore
+    .collection('chats')
+    .doc(chatId)
+    .collection('messages')
+    .orderBy(
+'timestamp',
+descending: false,
+)
+    .limit(limit);
 
-    final snapshot = await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .get()
-        .timeout(const Duration(seconds: 10));
+if (lastMessage != null &&
+lastMessage['timestamp'] !=
+null) {
+query = query.startAfter([
+lastMessage['timestamp'],
+]);
+}
 
-    final messages = snapshot.docs.reversed.map((doc) {
-      final data = doc.data();
+final snapshot = await query
+    .get()
+    .timeout(
+const Duration(seconds: 10),
+);
 
-      String text = data['text'] ?? '';
+for (final doc in snapshot.docs) {
+final data =
+doc.data() as Map<String, dynamic>;
 
-      if (data['encrypted'] == true) {
-        text = _decrypt(text);
-      }
+if (data['encrypted'] == true &&
+data['text'] != null) {
+data['text'] =
+_decrypt(data['text']);
+}
+}
 
-      final sender = data['sender'] ?? 'user';
+return snapshot;
+}
 
-      return "$sender: $text";
-    }).toList();
+// 5. Get recent conversation
+Future<List<String>>
+getRecentConversation(
+String chatId, {
+int limit = 3,
+}) async {
+final snapshot = await _firestore
+    .collection('chats')
+    .doc(chatId)
+    .collection('messages')
+    .orderBy(
+'timestamp',
+descending: true,
+)
+    .limit(limit)
+    .get()
+    .timeout(
+const Duration(seconds: 10),
+);
 
-    return messages;
-  }
+final messages =
+snapshot.docs.reversed.map((doc) {
+final data = doc.data();
+
+String text = data['text'] ?? '';
+
+if (data['encrypted'] == true) {
+text = _decrypt(text);
+}
+
+final sender =
+data['sender'] ?? 'user';
+
+return "$sender: $text";
+}).toList();
+
+return messages;
+}
 }
