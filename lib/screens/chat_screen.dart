@@ -39,6 +39,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _chatInitFailed = false;
   bool _pressed = false;
   bool _hideControllerError = false;
+  bool _localTyping = false;
 
   String? _lastFailedMessage;
   int _lastMessageCount = 0;
@@ -56,11 +57,14 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Future<void> _initChat() async {
-    setState(() {
-      _initializingChat = true;
-      _chatInitFailed = false;
-      _hideControllerError = false;
-    });
+    if (mounted) {
+      setState(() {
+        _initializingChat = true;
+        _chatInitFailed = false;
+        _hideControllerError = false;
+        _localTyping = false;
+      });
+    }
 
     try {
       final id = await widget.chatController.getOrCreateChat(widget.userId);
@@ -141,7 +145,7 @@ class _ChatScreenState extends State<ChatScreen>
   }) async {
     final message = text.trim();
 
-    if (message.isEmpty || _chatId == null || widget.chatController.isLoading) {
+    if (message.isEmpty || _chatId == null || _localTyping) {
       return;
     }
 
@@ -149,11 +153,13 @@ class _ChatScreenState extends State<ChatScreen>
       _pressed = false;
       _hideControllerError = false;
       _lastFailedMessage = message;
+      _localTyping = true;
     });
 
     widget.chatController.clearError();
 
     _messageController.clear();
+    _scrollToBottom();
 
     await widget.chatController.handleMessage(
       chatId: _chatId!,
@@ -166,12 +172,12 @@ class _ChatScreenState extends State<ChatScreen>
     if (widget.chatController.errorMessage == null) {
       setState(() {
         _lastFailedMessage = null;
+        _localTyping = false;
       });
-    } else if (keepTextOnFailure) {
-      _messageController.text = message;
-      _messageController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _messageController.text.length),
-      );
+    } else {
+      setState(() {
+        _localTyping = false;
+      });
     }
 
     _scrollToBottom();
@@ -381,6 +387,45 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  Widget _buildInitLoading() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 14,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.18),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.22),
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              "Preparing chat...",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildInitError() {
     return Center(
       child: Padding(
@@ -435,6 +480,9 @@ class _ChatScreenState extends State<ChatScreen>
 
   @override
   Widget build(BuildContext context) {
+    final controlsDisabled =
+        _initializingChat || _chatInitFailed || _chatId == null || _localTyping;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -459,7 +507,7 @@ class _ChatScreenState extends State<ChatScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Chhotu 🤖",
+                    "Chhotu ",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -555,16 +603,17 @@ class _ChatScreenState extends State<ChatScreen>
                         child: AnimatedBuilder(
                           animation: widget.chatController,
                           builder: (context, _) {
-                            final isTyping = widget.chatController.isLoading;
+                            final controllerTyping =
+                                widget.chatController.isLoading;
+
+                            final showTyping = _localTyping || controllerTyping;
 
                             final hasError =
                                 widget.chatController.errorMessage != null &&
                                     !_hideControllerError;
 
                             if (_initializingChat) {
-                              return const Center(
-                                child: AITypingLoader(),
-                              );
+                              return _buildInitLoading();
                             }
 
                             if (_chatInitFailed) {
@@ -581,7 +630,7 @@ class _ChatScreenState extends State<ChatScreen>
                                   _scrollToBottom();
                                 }
 
-                                if (docs.isEmpty) {
+                                if (docs.isEmpty && !showTyping && !hasError) {
                                   return _buildEmptyState();
                                 }
 
@@ -594,13 +643,11 @@ class _ChatScreenState extends State<ChatScreen>
                                     horizontal: 16,
                                     vertical: 12,
                                   ),
-                                  itemCount:
-                                  docs.length +
-                                      (hasError ? 1 : 0) +
-                                      (isTyping ? 1 : 0),
+                                  itemCount: docs.length +
+                                      (showTyping ? 1 : 0) +
+                                      (hasError ? 1 : 0),
                                   itemBuilder: (context, index) {
-                                    if (isTyping &&
-                                        index == docs.length) {
+                                    if (showTyping && index == 0) {
                                       return const Padding(
                                         padding: EdgeInsets.only(
                                           bottom: 12,
@@ -609,7 +656,8 @@ class _ChatScreenState extends State<ChatScreen>
                                       );
                                     }
 
-                                    if (hasError && index == 0)  {
+                                    if (hasError &&
+                                        index == (showTyping ? 1 : 0)) {
                                       return Padding(
                                         padding: const EdgeInsets.only(
                                           bottom: 12,
@@ -622,9 +670,8 @@ class _ChatScreenState extends State<ChatScreen>
 
                                     int adjustedIndex = index;
 
-                                    if (hasError) {
-                                      adjustedIndex--;
-                                    }
+                                    if (showTyping) adjustedIndex--;
+                                    if (hasError) adjustedIndex--;
 
                                     if (adjustedIndex < 0 ||
                                         adjustedIndex >= docs.length) {
@@ -639,7 +686,7 @@ class _ChatScreenState extends State<ChatScreen>
                                           const EdgeInsets.only(bottom: 10),
                                       child: ChatBubble(
                                         isUser: isUser,
-                                        text: data['text'] ?? '',
+                                        text: data['text']?.toString() ?? '',
                                         onLongPress: isUser
                                             ? () => _showMessageOptions(data)
                                             : null,
@@ -677,8 +724,8 @@ class _ChatScreenState extends State<ChatScreen>
                             Expanded(
                               child: TextField(
                                 controller: _messageController,
-                                enabled: true,
-                                readOnly: false,
+                                enabled: !controlsDisabled,
+                                readOnly: controlsDisabled,
                                 keyboardType: TextInputType.multiline,
                                 textInputAction: TextInputAction.newline,
                                 minLines: 1,
@@ -690,38 +737,31 @@ class _ChatScreenState extends State<ChatScreen>
                                 ),
                                 cursorColor: Colors.white,
                                 decoration: InputDecoration(
-                                  hintText:
-                                  "Tell Chhotu what's on your mind...",
+                                  hintText: _initializingChat
+                                      ? "Preparing chat..."
+                                      : _chatInitFailed
+                                          ? "Chat unavailable..."
+                                          : "Tell Chhotu what's on your mind...",
                                   hintStyle: TextStyle(
-                                    color:
-                                    Colors.white.withOpacity(0.65),
+                                    color: Colors.white.withOpacity(0.65),
                                   ),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
                                   disabledBorder: InputBorder.none,
-                                  contentPadding:
-                                  const EdgeInsets.symmetric(
+                                  contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: 12,
                                   ),
                                 ),
-                                onSubmitted: (_) async {
-                                  await _sendMessage(
-                                    _messageController.text,
-                                  );
-                                },
-                              )
+                              ),
                             ),
                             const SizedBox(width: 8),
                             ValueListenableBuilder<TextEditingValue>(
                               valueListenable: _messageController,
                               builder: (context, value, _) {
                                 final canSend = value.text.trim().isNotEmpty &&
-                                    !widget.chatController.isLoading &&
-                                    !_initializingChat &&
-                                    !_chatInitFailed &&
-                                    _chatId != null;
+                                    !controlsDisabled;
 
                                 return GestureDetector(
                                   onTapDown: canSend
@@ -747,19 +787,10 @@ class _ChatScreenState extends State<ChatScreen>
                                       : null,
                                   onTap: canSend
                                       ? () async {
-                                    final text =
-                                    _messageController.text.trim();
-
-                                    debugPrint(
-                                      "SEND CLICKED: $text",
-                                    );
-
-                                    if (text.isEmpty) {
-                                      return;
-                                    }
-
-                                    await _sendMessage(text);
-                                  }
+                                          await _sendMessage(
+                                            _messageController.text,
+                                          );
+                                        }
                                       : null,
                                   child: AnimatedOpacity(
                                     opacity: canSend ? 1 : 0.45,
