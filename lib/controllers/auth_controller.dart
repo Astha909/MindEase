@@ -63,6 +63,7 @@ class AuthController extends ChangeNotifier {
     } catch (e) {
       // Rollback auth state
       try {
+        await _authService.deleteAccount();
         await _authService.logout();
       } catch (_) {}
 
@@ -99,15 +100,17 @@ class AuthController extends ChangeNotifier {
         );
       }
 
-      final profileExists = await _profileService.doesUserProfileExist(
-        user,
-      );
+      final profileExists =
+          await _profileService.doesUserProfileExist(user).timeout(
+                const Duration(seconds: 10),
+              );
 
       if (!profileExists) {
-        await _authService.logout();
-
-        throw Exception(
-          "Profile missing. Please register again.",
+        await _profileService.createUserProfile(
+          user: user,
+          name: user.displayName ?? "User",
+          age: 18,
+          gender: "Prefer not to say",
         );
       }
 
@@ -140,9 +143,10 @@ class AuthController extends ChangeNotifier {
         );
       }
 
-      final profileExists = await _profileService.doesUserProfileExist(
-        user,
-      );
+      final profileExists =
+          await _profileService.doesUserProfileExist(user).timeout(
+                const Duration(seconds: 10),
+              );
 
       if (!profileExists) {
         // Prevent orphan auth session
@@ -232,6 +236,29 @@ class AuthController extends ChangeNotifier {
               "",
             ),
       );
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // DELETE ACCOUNT
+  Future<bool> deleteAccount() async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      await _authService.deleteAccount();
+
+      return true;
+    } catch (e) {
+      _setError(
+        e.toString().replaceFirst(
+              "Exception: ",
+              "",
+            ),
+      );
+
+      return false;
     } finally {
       _setLoading(false);
     }

@@ -76,6 +76,7 @@ class ProfileController extends ChangeNotifier {
     try {
       await _profileService.deleteUserProfile();
       userProfile = null;
+      notifyListeners();
     } catch (e) {
       _setError("Failed to delete account");
     } finally {
@@ -90,7 +91,8 @@ class ProfileController extends ChangeNotifier {
 
     try {
       await _authService.logout();
-      userProfile = null; // clear cached profile
+      userProfile = null;
+      notifyListeners(); // clear cached profile
     } catch (e) {
       _setError("Logout failed");
     } finally {

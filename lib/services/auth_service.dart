@@ -8,9 +8,11 @@ bool _isValidEmail(String email) {
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
+
   Stream<String?> get authUserIdStream =>
       _auth.idTokenChanges().map((user) => user?.uid);
 
@@ -37,7 +39,7 @@ class AuthService {
 
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
       final User? user = userCredential.user;
@@ -63,7 +65,7 @@ class AuthService {
 
     try {
       final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
       final User? user = userCredential.user;
@@ -135,6 +137,10 @@ class AuthService {
 
   // LOGOUT
   Future<void> logout() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn();
+
+    await googleSignIn.signOut();
+
     await _auth.signOut();
   }
 
@@ -154,6 +160,29 @@ class AuthService {
       await user.sendEmailVerification();
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? "Failed to send verification email");
+    }
+  }
+
+  // DELETE AUTH ACCOUNT
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw Exception("User not logged in");
+    }
+
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw Exception(
+          "Please log in again before deleting account.",
+        );
+      }
+
+      throw Exception(
+        e.message ?? "Account deletion failed",
+      );
     }
   }
 }

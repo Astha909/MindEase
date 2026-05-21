@@ -26,7 +26,11 @@ class UserProfileService {
 
     final doc = _firestore.collection('users').doc(user.uid);
 
-    final snapshot = await doc.get();
+    final snapshot = await doc
+        .get()
+        .timeout(
+      const Duration(seconds: 10),
+    );
     if (snapshot.exists) {
       throw Exception("Profile already exists");
     }
@@ -34,10 +38,10 @@ class UserProfileService {
     await doc.set({
       'uid': user.uid,
       'email': user.email,
-      'name': name,
-      'age': age,
-      'gender': gender,
-      'sexuality': sexuality ?? '',
+      'name': name.trim(),
+      'age' : age,
+      'gender': gender.trim(),
+      'sexuality': sexuality?.trim() ?? '',
       'profilePic': '',
       'moodLevel': null,
       'overwhelmed': false,
@@ -93,10 +97,10 @@ class UserProfileService {
     }
 
     await _firestore.collection('users').doc(user.uid).update({
-      'name': name,
-      'age': age,
-      'gender': gender,
-      'sexuality': sexuality ?? '',
+      'name': name.trim(),
+      'age' : age,
+      'gender': gender.trim(),
+      'sexuality': sexuality?.trim() ?? '',
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -111,10 +115,25 @@ class UserProfileService {
 
     final uid = user.uid;
 
-    // First delete Firebase Auth account
-    await user.delete();
+    try {
+      // Delete Firestore profile first
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .delete();
 
-    // Then delete Firestore profile
-    await _firestore.collection('users').doc(uid).delete();
+      // Then delete auth account
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw Exception(
+          "Please log in again before deleting account.",
+        );
+      }
+
+      throw Exception(
+        e.message ?? "Profile deletion failed",
+      );
+    }
   }
 }
