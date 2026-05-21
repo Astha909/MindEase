@@ -581,7 +581,7 @@ class _ChatScreenState extends State<ChatScreen>
                                   _scrollToBottom();
                                 }
 
-                                if (docs.isEmpty && !isTyping && !hasError) {
+                                if (docs.isEmpty) {
                                   return _buildEmptyState();
                                 }
 
@@ -594,19 +594,22 @@ class _ChatScreenState extends State<ChatScreen>
                                     horizontal: 16,
                                     vertical: 12,
                                   ),
-                                  itemCount: docs.length +
-                                      (isTyping ? 1 : 0) +
-                                      (hasError ? 1 : 0),
+                                  itemCount:
+                                  docs.length +
+                                      (hasError ? 1 : 0) +
+                                      (isTyping ? 1 : 0),
                                   itemBuilder: (context, index) {
-                                    if (isTyping && index == 0) {
+                                    if (isTyping &&
+                                        index == docs.length) {
                                       return const Padding(
-                                        padding: EdgeInsets.only(bottom: 12),
+                                        padding: EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
                                         child: AITypingLoader(),
                                       );
                                     }
 
-                                    if (hasError &&
-                                        index == (isTyping ? 1 : 0)) {
+                                    if (hasError && index == 0)  {
                                       return Padding(
                                         padding: const EdgeInsets.only(
                                           bottom: 12,
@@ -619,8 +622,9 @@ class _ChatScreenState extends State<ChatScreen>
 
                                     int adjustedIndex = index;
 
-                                    if (isTyping) adjustedIndex--;
-                                    if (hasError) adjustedIndex--;
+                                    if (hasError) {
+                                      adjustedIndex--;
+                                    }
 
                                     if (adjustedIndex < 0 ||
                                         adjustedIndex >= docs.length) {
@@ -673,30 +677,41 @@ class _ChatScreenState extends State<ChatScreen>
                             Expanded(
                               child: TextField(
                                 controller: _messageController,
-                                enabled: !_initializingChat &&
-                                    !_chatInitFailed &&
-                                    _chatId != null,
-                                style: const TextStyle(color: Colors.white),
+                                enabled: true,
+                                readOnly: false,
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
                                 minLines: 1,
                                 maxLines: 4,
-                                textInputAction: TextInputAction.send,
-                                onSubmitted: (_) {
-                                  _sendMessage(_messageController.text);
-                                },
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                cursorColor: Colors.white,
                                 decoration: InputDecoration(
-                                  hintText: _initializingChat
-                                      ? "Preparing chat..."
-                                      : "Tell Chhotu what's on your mind...",
+                                  hintText:
+                                  "Tell Chhotu what's on your mind...",
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.65),
+                                    color:
+                                    Colors.white.withOpacity(0.65),
                                   ),
                                   border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  contentPadding:
+                                  const EdgeInsets.symmetric(
+                                    horizontal: 14,
                                     vertical: 12,
                                   ),
                                 ),
-                              ),
+                                onSubmitted: (_) async {
+                                  await _sendMessage(
+                                    _messageController.text,
+                                  );
+                                },
+                              )
                             ),
                             const SizedBox(width: 8),
                             ValueListenableBuilder<TextEditingValue>(
@@ -731,11 +746,20 @@ class _ChatScreenState extends State<ChatScreen>
                                         }
                                       : null,
                                   onTap: canSend
-                                      ? () {
-                                          _sendMessage(
-                                            _messageController.text,
-                                          );
-                                        }
+                                      ? () async {
+                                    final text =
+                                    _messageController.text.trim();
+
+                                    debugPrint(
+                                      "SEND CLICKED: $text",
+                                    );
+
+                                    if (text.isEmpty) {
+                                      return;
+                                    }
+
+                                    await _sendMessage(text);
+                                  }
                                       : null,
                                   child: AnimatedOpacity(
                                     opacity: canSend ? 1 : 0.45,

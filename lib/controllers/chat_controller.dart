@@ -118,8 +118,6 @@ class ChatController extends ChangeNotifier {
     if (message.trim().isEmpty || isLoading) {
       return;
     }
-
-    _setLoading(true);
     _setError(null);
 
     try {
@@ -177,6 +175,9 @@ class ChatController extends ChangeNotifier {
           User:
           $normalizedMessage
           """;
+
+        _setLoading(true);
+
         aiResult = await _aiService
             .getReply(memoryPrompt)
             .timeout(const Duration(seconds: 15));
