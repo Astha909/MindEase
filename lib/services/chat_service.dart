@@ -11,33 +11,26 @@ class ChatService {
     '12345678901234567890123456789012',
   );
 
-  final _iv = encrypt.IV.fromLength(16);
-
   late final encrypt.Encrypter _aes = encrypt.Encrypter(
     encrypt.AES(_key),
   );
 
-  // Encrypt before Firestore storage
-  String _encrypt(String text) {
-    return _aes
-        .encrypt(
-          text,
-          iv: _iv,
-        )
-        .base64;
-  }
-
   // Decrypt before UI usage
-  String _decrypt(String encryptedText) {
+  String _decrypt(
+    String encryptedText,
+    String? ivText,
+  ) {
     try {
-      // Skip normal text
-      if (!encryptedText.contains('=') && encryptedText.length < 16) {
+      // Old/plain messages fallback
+      if (ivText == null || ivText.isEmpty) {
         return encryptedText;
       }
 
+      final iv = encrypt.IV.fromBase64(ivText);
+
       return _aes.decrypt64(
         encryptedText,
-        iv: _iv,
+        iv: iv,
       );
     } catch (e) {
       return encryptedText;
@@ -48,6 +41,10 @@ class ChatService {
   Future<String> getOrCreateChat(
     String userId,
   ) async {
+    if (userId.trim().isEmpty) {
+      throw Exception("Invalid userId");
+    }
+
     final query = await _firestore
         .collection('chats')
         .where(
@@ -64,13 +61,11 @@ class ChatService {
       return query.docs.first.id;
     }
 
-    final doc = await _firestore
-        .collection('chats')
-        .add({
+    final doc = await _firestore.collection('chats').add({
       'userId': userId,
       'lastMessage': '',
-      'timestamp':
-      FieldValue.serverTimestamp(),
+      'lastMessageIv': '',
+      'timestamp': FieldValue.serverTimestamp(),
     });
 
     return doc.id;
@@ -89,10 +84,18 @@ class ChatService {
     final messageRef =
         _firestore.collection('chats').doc(chatId).collection('messages');
 
+    final iv = encrypt.IV.fromSecureRandom(16);
+
+    final encrypted = _aes.encrypt(
+      text,
+      iv: iv,
+    );
+
     await messageRef.add({
       'sender': sender,
       'userId': userId,
-      'text': _encrypt(text),
+      'text': encrypted.base64,
+      'iv': iv.base64,
       'encrypted': true,
       'timestamp': FieldValue.serverTimestamp(),
       'sentiment': sentiment,
@@ -101,7 +104,8 @@ class ChatService {
     });
 
     await _firestore.collection('chats').doc(chatId).update({
-      'lastMessage': _encrypt(text),
+      'lastMessage': encrypted.base64,
+      'lastMessageIv': iv.base64,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -135,8 +139,16 @@ class ChatService {
       );
     }
 
+    final iv = encrypt.IV.fromSecureRandom(16);
+
+    final encrypted = _aes.encrypt(
+      newText,
+      iv: iv,
+    );
+
     await messageRef.update({
-      'text': _encrypt(newText),
+      'text': encrypted.base64,
+      'iv': iv.base64,
       'edited': true,
       'editedAt': FieldValue.serverTimestamp(),
     });
@@ -174,7 +186,9 @@ class ChatService {
   }
 
   // Listen to realtime messages
-  Stream<List<Map<String, dynamic>>> listenToMessages(String chatId) {
+  Stream<List<Map<String, dynamic>>> listenToMessages(
+    String chatId,
+  ) {
     return _firestore
         .collection('chats')
         .doc(chatId)
@@ -200,15 +214,17 @@ class ChatService {
               return null;
             }
 
-            if (data['encrypted'] == true && data['text'] != null) {
+            if (data['encrypted'] == true &&
+                data['text'] != null &&
+                data['iv'] != null) {
               data['text'] = _decrypt(
-                data['text'],
+                data['text'] ?? '',
+                data['iv'],
               );
             }
-            if (data['encrypted'] == true && data['text'] != null) {
-              data['text'] = _decrypt(data['text']);
-            }
+
             data['id'] = doc.id;
+
             return data;
           })
           .where((e) => e != null)
@@ -220,7 +236,7 @@ class ChatService {
   // Fetch paginated messages
   Future<QuerySnapshot> fetchMessages({
     required String chatId,
-    Map<String, dynamic>? lastMessage,
+    dynamic lastDocument,
     int limit = 15,
   }) async {
     Query query = _firestore
@@ -233,10 +249,8 @@ class ChatService {
         )
         .limit(limit);
 
-    if (lastMessage != null && lastMessage['timestamp'] != null) {
-      query = query.startAfter([
-        lastMessage['timestamp'],
-      ]);
+    if (lastDocument != null) {
+      query = query.startAfterDocument(lastDocument);
     }
 
     final snapshot = await query.get().timeout(
@@ -246,8 +260,13 @@ class ChatService {
     for (final doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
 
-      if (data['encrypted'] == true && data['text'] != null) {
-        data['text'] = _decrypt(data['text']);
+      if (data['encrypted'] == true &&
+          data['text'] != null &&
+          data['iv'] != null) {
+        data['text'] = _decrypt(
+          data['text'] ?? '',
+          data['iv'],
+        );
       }
     }
 
@@ -278,8 +297,11 @@ class ChatService {
 
       String text = data['text'] ?? '';
 
-      if (data['encrypted'] == true) {
-        text = _decrypt(text);
+      if (data['encrypted'] == true && data['iv'] != null) {
+        text = _decrypt(
+          text,
+          data['iv'],
+        );
       }
 
       final sender = data['sender'] ?? 'user';

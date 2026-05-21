@@ -153,12 +153,17 @@ class _ChatScreenState extends State<ChatScreen>
       _pressed = false;
       _hideControllerError = false;
       _lastFailedMessage = message;
-      _localTyping = true;
+      _localTyping = false;
     });
 
     widget.chatController.clearError();
 
     _messageController.clear();
+
+    await Future.delayed(
+      const Duration(milliseconds: 150),
+    );
+
     _scrollToBottom();
 
     await widget.chatController.handleMessage(
