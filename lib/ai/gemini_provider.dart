@@ -6,9 +6,12 @@ import 'ai_provider.dart';
 
 class GeminiProvider implements AIProvider {
   @override
-  Future<Map<String, dynamic>> getReply(
-    String message,
-  ) async {
+  Future<Map<String, dynamic>> getReply({
+    required String message,
+    required String detectedMood,
+    required List<dynamic> tips,
+    required String activity,
+  }) async {
     try {
       final callable = FirebaseFunctions.instanceFor(
         region: 'us-central1',
@@ -18,10 +21,17 @@ class GeminiProvider implements AIProvider {
 
       final response = await callable.call({
         "message": message,
-      }).timeout(const Duration(seconds: 12));
+        "mood": detectedMood,
+        "tips": tips,
+        "activity": activity,
+      }).timeout(
+        const Duration(seconds: 12),
+      );
 
       if (response.data == null) {
-        throw Exception("Empty AI response");
+        throw Exception(
+          "Empty AI response",
+        );
       }
 
       if (response.data is! Map) {
@@ -35,15 +45,27 @@ class GeminiProvider implements AIProvider {
       );
 
       return {
-        "mood": data["mood"]?.toString() ?? "neutral",
+        // CLASSIFIER is source of truth
+        "mood": detectedMood,
+
+        // AI supportive response
         "chat_reply": data["chat_reply"]?.toString() ?? "I'm here with you.",
-        "tips": data["tips"] is List ? data["tips"] : [],
-        "activity": data["activity"]?.toString() ?? "",
+
+        // Backend wellness tips
+        "tips": tips,
+
+        // Backend activity suggestion
+        "activity": activity,
+
+        // AI crisis flags only
         "is_crisis": data["is_crisis"] == true,
+
         "crisis_level": data["crisis_level"]?.toString() ?? "none",
       };
     } catch (e, stack) {
-      print("❌ Gemini error: $e");
+      print(
+        "❌ Gemini error: $e",
+      );
 
       print(stack);
 

@@ -12,9 +12,11 @@ class ChatController extends ChangeNotifier {
   final EmergencyController _emergencyController;
   final AIService _aiService;
   final WellnessService _wellnessService;
+
   final MoodClassifier _localClassifier = MoodClassifier();
 
   bool isLoading = false;
+
   String? errorMessage;
 
   ChatController({
@@ -24,7 +26,10 @@ class ChatController extends ChangeNotifier {
     WellnessService? wellnessService,
   })  : _chatService = chatService ?? ChatService(),
         _emergencyController = emergencyController ?? EmergencyController(),
-        _aiService = aiService ?? AIService(GeminiProvider()),
+        _aiService = aiService ??
+            AIService(
+              GeminiProvider(),
+            ),
         _wellnessService = wellnessService ?? WellnessService() {
     _initLocalClassifier();
   }
@@ -35,11 +40,13 @@ class ChatController extends ChangeNotifier {
 
   void _setLoading(bool value) {
     isLoading = value;
+
     notifyListeners();
   }
 
   void _setError(String? message) {
     errorMessage = message;
+
     notifyListeners();
   }
 
@@ -47,17 +54,23 @@ class ChatController extends ChangeNotifier {
     _setError(null);
   }
 
-  String _normalizeMoodWords(String input) {
+  String _normalizeMoodWords(
+    String input,
+  ) {
     String normalized = input.toLowerCase().trim();
 
-    MoodLabels.synonymMap.forEach((key, value) {
-      final regex = RegExp(r'\b' + key + r'\b');
+    MoodLabels.synonymMap.forEach(
+      (key, value) {
+        final regex = RegExp(
+          r'\b' + key + r'\b',
+        );
 
-      normalized = normalized.replaceAll(
-        regex,
-        value,
-      );
-    });
+        normalized = normalized.replaceAll(
+          regex,
+          value,
+        );
+      },
+    );
 
     return normalized;
   }
@@ -70,10 +83,10 @@ class ChatController extends ChangeNotifier {
     );
   }
 
-  Stream<List<Map<String, dynamic>>> listenToMessages(String chatId) {
-    return _chatService.listenToMessages(
-      chatId,
-    );
+  Stream<List<Map<String, dynamic>>> listenToMessages(
+    String chatId,
+  ) {
+    return _chatService.listenToMessages(chatId);
   }
 
   Future<List<Map<String, dynamic>>> fetchMessages({
@@ -141,9 +154,9 @@ class ChatController extends ChangeNotifier {
         text: message,
       );
 
-      final history = await _chatService.getRecentConversation(chatId);
-
-      Map<String, dynamic> aiResult = {};
+      final history = await _chatService.getRecentConversation(
+        chatId,
+      );
 
       final normalizedMessage = _normalizeMoodWords(message);
 
@@ -157,9 +170,12 @@ class ChatController extends ChangeNotifier {
         "stressed",
       ];
 
-      if (highRiskMoods.contains(localMood)) {
+      if (highRiskMoods.contains(
+        localMood,
+      )) {
         debugPrint(
-          "⚠️ High-risk mood detected: $localMood",
+          "⚠️ High-risk mood detected: "
+          "$localMood",
         );
       }
 
@@ -180,40 +196,74 @@ class ChatController extends ChangeNotifier {
           chatId: chatId,
           userId: userId,
           sender: "ai",
-          text: "I’m really concerned about what you shared. "
+          text: "I’m really concerned "
+              "about what you shared. "
               "You are not alone. "
-              "Please contact local emergency services immediately "
-              "or reach out to a trusted person nearby.",
+              "Please contact local "
+              "emergency services "
+              "immediately or reach "
+              "out to a trusted "
+              "person nearby.",
         );
 
         return;
       }
 
-      try {
-        final memoryPrompt = """
-Mood: $localMood
+      _setLoading(true);
 
-Recent:
+      final tips = await _wellnessService.getTipsForMood(
+        localMood,
+      );
+
+      final activity = await _wellnessService.getActivityForMood(
+        localMood,
+      );
+
+      final memoryPrompt = """
+Detected Mood: $localMood
+
+Recent Conversation:
 ${history.join('\n')}
 
-User:
+Suggested Wellness Tips:
+${tips.join('\n')}
+
+Suggested Activity:
+$activity
+
+User Message:
 $normalizedMessage
 """;
 
-        _setLoading(true);
+      Map<String, dynamic> aiResult = {};
 
-        aiResult = await _aiService.getReply(memoryPrompt).timeout(
+      try {
+        aiResult = await _aiService
+            .getReply(
+              message: memoryPrompt,
+              detectedMood: localMood,
+              tips: tips,
+              activity: activity,
+            )
+            .timeout(
               const Duration(
                 seconds: 15,
               ),
             );
+
         _setError(null);
       } catch (e, stack) {
-        debugPrint("AI error: $e");
-        debugPrintStack(stackTrace: stack);
+        debugPrint(
+          "AI error: $e",
+        );
+
+        debugPrintStack(
+          stackTrace: stack,
+        );
 
         aiResult = {
-          "chat_reply": "I'm here with you. Tell me more.",
+          "chat_reply": "I'm here with you. "
+              "Tell me more.",
           "crisis_level": "none",
         };
       }
@@ -224,15 +274,13 @@ $normalizedMessage
 
       final crisisLevel = aiResult["crisis_level"]?.toString() ?? "none";
 
-      final tips = await _wellnessService.getTipsForMood(mood);
-
-      final activity = await _wellnessService.getActivityForMood(mood);
-
       if (crisisLevel == "severe") {
         await _emergencyController.triggerEmergency(
           userId: userId,
           message: message,
-          keywordsFound: ["ai_severe_detection"],
+          keywordsFound: [
+            "ai_severe_detection",
+          ],
           triggerType: "ai_severe_detection",
           isConfirmed: true,
         );
@@ -241,11 +289,16 @@ $normalizedMessage
           chatId: chatId,
           userId: userId,
           sender: "ai",
-          text: "I’m really concerned about what you just shared. "
-              "You are not alone. "
-              "If you’re in immediate danger, "
-              "please contact local emergency services immediately "
-              "or reach out to someone you trust.",
+          text: "I’m really concerned "
+              "about what you just "
+              "shared. You are not "
+              "alone. If you’re in "
+              "immediate danger, "
+              "please contact local "
+              "emergency services "
+              "immediately or reach "
+              "out to someone "
+              "you trust.",
         );
 
         return;
@@ -274,8 +327,23 @@ $normalizedMessage
 
       String finalReply = chatReply;
 
-      if (negativeMoods.contains(mood) && tips.isNotEmpty) {
-        finalReply += "\n\n💡 ${tips.first}";
+      if (negativeMoods.contains(
+            mood,
+          ) &&
+          tips.isNotEmpty) {
+        if (negativeMoods.contains(mood) &&
+            tips.isNotEmpty) {
+
+          final firstTip = tips.first;
+
+          if (firstTip is Map<String, dynamic>) {
+            finalReply +=
+            "\n\n💡 ${firstTip["content"]}";
+          } else {
+            finalReply +=
+            "\n\n💡 $firstTip";
+          }
+        }
       }
 
       await _chatService.sendMessage(
@@ -288,13 +356,17 @@ $normalizedMessage
         crisisLevel: crisisLevel,
       );
     } catch (e, stack) {
-      debugPrint("❌ Chat error: $e");
+      debugPrint(
+        "❌ Chat error: $e",
+      );
 
       debugPrintStack(
         stackTrace: stack,
       );
 
-      _setError(e.toString());
+      _setError(
+        e.toString(),
+      );
     } finally {
       _setLoading(false);
     }

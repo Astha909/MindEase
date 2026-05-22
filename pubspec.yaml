@@ -24,6 +24,9 @@ dependencies:
   provider: ^6.1.2
   tflite_flutter: ^0.12.1
 
+  flutter_local_notifications: ^17.2.1
+  timezone: ^0.9.4
+
   animated_background: ^2.0.0
   flutter_animate: ^4.5.0
 

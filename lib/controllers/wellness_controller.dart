@@ -1,28 +1,33 @@
 import 'package:flutter/material.dart';
+
 import '../services/wellness_service.dart';
 import '../services/mood_classifier.dart';
+import '../services/notification_service.dart';
+
 import '../ai/ai_service.dart';
 import '../ai/gemini_provider.dart';
 
 class WellnessController extends ChangeNotifier {
-  final WellnessService _wellnessService =
-  WellnessService();
+  final WellnessService _wellnessService = WellnessService();
 
-  final AIService _aiService =
-  AIService(
+  final NotificationService _notificationService = NotificationService();
+
+  final AIService _aiService = AIService(
     GeminiProvider(),
   );
 
-  final MoodClassifier _localClassifier =
-  MoodClassifier();
+  final MoodClassifier _localClassifier = MoodClassifier();
 
   WellnessController() {
-    _initLocalClassifier();
+    _initialize();
   }
 
-  Future<void>
-  _initLocalClassifier() async {
+  Future<void> _initialize() async {
     await _localClassifier.loadModel();
+
+    await _notificationService.init();
+
+    await _wellnessService.seedSampleTips();
   }
 
   bool isLoading = false;
@@ -31,26 +36,27 @@ class WellnessController extends ChangeNotifier {
 
   void _setLoading(bool value) {
     isLoading = value;
+
     notifyListeners();
   }
 
   void _setError(String? message) {
     errorMessage = message;
+
     notifyListeners();
   }
 
   Stream getMoodLogs(
-      String userId,
-      ) {
-    return _wellnessService
-        .getMoodLogs(userId);
+    String userId,
+  ) {
+    return _wellnessService.getMoodLogs(userId);
   }
 
   Stream getWellnessTips() {
-    return _wellnessService
-        .getWellnessTips();
+    return _wellnessService.getWellnessTips();
   }
 
+  // ANALYZE MANUAL MOOD
   // ANALYZE MANUAL MOOD
   Future<void> analyzeManualMood({
     required String userId,
@@ -69,43 +75,41 @@ class WellnessController extends ChangeNotifier {
     _setError(null);
 
     try {
-      final localMood =
-      _localClassifier.predict(
+      final localMood = _localClassifier.predict(
         moodInput,
       );
 
-      final aiResult =
-      await _aiService
+      final tips = await _wellnessService.getTipsForMood(
+        localMood,
+      );
+
+      final activity = await _wellnessService.getActivityForMood(
+        localMood,
+      );
+
+      final aiResult = await _aiService
           .getReply(
-        "User feels: "
-            "$moodInput "
-            "(detected mood: "
-            "$localMood)",
-      )
+            message: "User feels: "
+                "$moodInput",
+            detectedMood: localMood,
+            tips: tips,
+            activity: activity,
+          )
           .timeout(
-        const Duration(
-          seconds: 15,
-        ),
-      );
+            const Duration(
+              seconds: 15,
+            ),
+          );
 
-      String mood =
-          aiResult["mood"]
-              ?.toString() ??
-              localMood;
+      String mood = localMood;
 
-      final tips =
-      await _wellnessService
-          .getTipsForMood(
-        mood,
-      );
+      final aiMood = aiResult["mood"]?.toString();
 
-      final activity =
-          aiResult["activity"]
-              ?.toString() ??
-              "";
+      mood = (aiMood == null || aiMood.isEmpty || aiMood == "neutral")
+          ? localMood
+          : aiMood;
 
-      await _wellnessService
-          .addMoodLog(
+      await _wellnessService.addMoodLog(
         userId: userId,
         mood: mood,
         note: activity,
@@ -116,9 +120,9 @@ class WellnessController extends ChangeNotifier {
     } catch (e) {
       _setError(
         e.toString().replaceFirst(
-          "Exception: ",
-          "",
-        ),
+              "Exception: ",
+              "",
+            ),
       );
     } finally {
       _setLoading(false);
@@ -126,23 +130,66 @@ class WellnessController extends ChangeNotifier {
   }
 
   Future<String?> getLatestMood(
-      String userId,
-      ) async {
+    String userId,
+  ) async {
     try {
-      return await _wellnessService
-          .fetchLatestMood(
+      return await _wellnessService.fetchLatestMood(
         userId,
       );
     } catch (e) {
       _setError(
         e.toString().replaceFirst(
-          "Exception: ",
-          "",
-        ),
+              "Exception: ",
+              "",
+            ),
       );
 
       return null;
     }
+  }
+
+  Future<Map<String, int>> getWeeklyMoodStats(
+    String userId,
+  ) {
+    return _wellnessService.getWeeklyMoodStats(
+      userId,
+    );
+  }
+
+  Future<Map<String, int>> getMonthlyMoodStats(
+    String userId,
+  ) {
+    return _wellnessService.getMonthlyMoodStats(
+      userId,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getMoodTrendData(
+    String userId,
+  ) {
+    return _wellnessService.getMoodTrendData(
+      userId,
+    );
+  }
+
+  Future<void> saveReminder({
+    required String userId,
+    required String time,
+    required bool enabled,
+  }) {
+    return _wellnessService.saveReminder(
+      userId: userId,
+      time: time,
+      enabled: enabled,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getReminder(
+    String userId,
+  ) {
+    return _wellnessService.getReminder(
+      userId,
+    );
   }
 
   Future<void> addMood({
@@ -164,8 +211,7 @@ class WellnessController extends ChangeNotifier {
     _setError(null);
 
     try {
-      await _wellnessService
-          .addMoodLog(
+      await _wellnessService.addMoodLog(
         userId: userId,
         mood: mood,
         note: note ?? "",
@@ -175,9 +221,9 @@ class WellnessController extends ChangeNotifier {
     } catch (e) {
       _setError(
         e.toString().replaceFirst(
-          "Exception: ",
-          "",
-        ),
+              "Exception: ",
+              "",
+            ),
       );
     } finally {
       _setLoading(false);
@@ -186,11 +232,10 @@ class WellnessController extends ChangeNotifier {
 
   // DELETE LATEST MOOD
   Future<void> deleteLatestMood(
-      String userId,
-      ) async {
+    String userId,
+  ) async {
     try {
-      await _wellnessService
-          .deleteLatestMood(
+      await _wellnessService.deleteLatestMood(
         userId,
       );
 
@@ -198,9 +243,28 @@ class WellnessController extends ChangeNotifier {
     } catch (e) {
       _setError(
         e.toString().replaceFirst(
-          "Exception: ",
-          "",
-        ),
+              "Exception: ",
+              "",
+            ),
+      );
+    }
+  }
+
+  Future<void> sendDailyCheckInReminder() async {
+    try {
+      await _notificationService.showDailyReminder(
+        id: 1,
+        title: 'Daily Check-In',
+        body: 'How are you feeling today?',
+      );
+
+      _setError(null);
+    } catch (e) {
+      _setError(
+        e.toString().replaceFirst(
+              "Exception: ",
+              "",
+            ),
       );
     }
   }
