@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/emergency_service.dart';
 
 class EmergencyController extends ChangeNotifier {
-  final EmergencyService _emergencyService = EmergencyService();
+  final EmergencyService _emergencyService =
+  EmergencyService();
 
   bool isLoading = false;
 
@@ -19,24 +20,37 @@ class EmergencyController extends ChangeNotifier {
   }
 
   // GET CONTACTS
-  Stream getEmergencyContacts(String userId) {
-    return _emergencyService.getEmergencyContacts(userId);
+  Stream getEmergencyContacts(
+      String userId,
+      ) {
+    return _emergencyService
+        .getEmergencyContacts(
+      userId,
+    );
   }
 
   // GET LOGS
-  Stream getEmergencyLogs(String userId) {
-    return _emergencyService.getEmergencyLogs(userId);
+  Stream getEmergencyLogs(
+      String userId,
+      ) {
+    return _emergencyService
+        .getEmergencyLogs(
+      userId,
+    );
   }
 
   // CHECK KEYWORDS
   List<String> checkEmergencyKeywords(
-    String message,
-  ) {
+      String message,
+      ) {
     if (message.trim().isEmpty) {
       return [];
     }
 
-    return _emergencyService.getEmergencyKeywords(message);
+    return _emergencyService
+        .getEmergencyKeywords(
+      message,
+    );
   }
 
   // TRIGGER EMERGENCY
@@ -45,15 +59,23 @@ class EmergencyController extends ChangeNotifier {
     required String message,
     required List<String> keywordsFound,
     required bool isConfirmed,
-    String triggerType = "keyword_detection",
+    String triggerType =
+    "keyword_detection",
   }) async {
-    if (message.trim().isEmpty || keywordsFound.isEmpty) {
-      _setError("Invalid emergency trigger");
+    if (message.trim().isEmpty ||
+        keywordsFound.isEmpty) {
+      _setError(
+        "Invalid emergency trigger",
+      );
+
       return;
     }
 
     if (!isConfirmed) {
-      _setError("Emergency not confirmed");
+      _setError(
+        "Emergency not confirmed",
+      );
+
       return;
     }
 
@@ -62,20 +84,32 @@ class EmergencyController extends ChangeNotifier {
     _setError(null);
 
     try {
-      await _emergencyService.triggerEmergency(
+      await _emergencyService
+          .triggerEmergency(
         userId: userId,
         message: message,
-        keywordsFound: keywordsFound,
-        triggerType: triggerType,
+        keywordsFound:
+        keywordsFound,
+        triggerType:
+        triggerType,
       );
+
+      _setError(null);
     } catch (e, stack) {
-      debugPrint("Emergency error: $e");
+      debugPrint(
+        "Emergency error: $e",
+      );
 
       debugPrintStack(
         stackTrace: stack,
       );
 
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
     } finally {
       _setLoading(false);
     }
@@ -91,7 +125,10 @@ class EmergencyController extends ChangeNotifier {
     if (name.trim().isEmpty ||
         phone.trim().isEmpty ||
         relation.trim().isEmpty) {
-      _setError("All fields are required");
+      _setError(
+        "All fields are required",
+      );
+
       return;
     }
 
@@ -100,20 +137,30 @@ class EmergencyController extends ChangeNotifier {
     _setError(null);
 
     try {
-      await _emergencyService.addEmergencyContact(
+      await _emergencyService
+          .addEmergencyContact(
         userId: userId,
         name: name,
         phone: phone,
         relation: relation,
       );
+
+      _setError(null);
     } catch (e, stack) {
-      debugPrint("Emergency error: $e");
+      debugPrint(
+        "Emergency error: $e",
+      );
 
       debugPrintStack(
         stackTrace: stack,
       );
 
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
     } finally {
       _setLoading(false);
     }
@@ -121,10 +168,14 @@ class EmergencyController extends ChangeNotifier {
 
   // DELETE CONTACT
   Future<void> deleteContact(
-    String contactId,
-  ) async {
+      String contactId,
+      String userId,
+      ) async {
     if (contactId.trim().isEmpty) {
-      _setError("Invalid contact");
+      _setError(
+        "Invalid contact",
+      );
+
       return;
     }
 
@@ -133,17 +184,28 @@ class EmergencyController extends ChangeNotifier {
     _setError(null);
 
     try {
-      await _emergencyService.deleteEmergencyContact(
+      await _emergencyService
+          .deleteEmergencyContact(
         contactId,
+        userId,
       );
+
+      _setError(null);
     } catch (e, stack) {
-      debugPrint("Emergency error: $e");
+      debugPrint(
+        "Emergency error: $e",
+      );
 
       debugPrintStack(
         stackTrace: stack,
       );
 
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
     } finally {
       _setLoading(false);
     }

@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class EmergencyService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   // ADD EMERGENCY CONTACT
   Future<void> addEmergencyContact({
@@ -13,29 +14,55 @@ class EmergencyService {
     required String phone,
     required String relation,
   }) async {
-    await _firestore.collection('emergency_contacts').add({
+    if (name.trim().isEmpty) {
+      throw Exception(
+        "Contact name required",
+      );
+    }
+
+    if (phone.trim().isEmpty) {
+      throw Exception(
+        "Phone number required",
+      );
+    }
+
+    if (relation.trim().isEmpty) {
+      throw Exception(
+        "Relation required",
+      );
+    }
+
+    await _firestore
+        .collection('emergency_contacts')
+        .add({
       'userId': userId,
-      'name': name,
-      'phone': phone,
-      'relation': relation,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      'name': name.trim(),
+      'phone': phone.trim(),
+      'relation': relation.trim(),
+      'createdAt':
+      FieldValue.serverTimestamp(),
+    }).timeout(
+      const Duration(seconds: 10),
+    );
   }
 
   // GET EMERGENCY CONTACTS
-  Stream<QuerySnapshot> getEmergencyContacts(
-    String userId,
-  ) {
+  Stream<QuerySnapshot>
+  getEmergencyContacts(
+      String userId,
+      ) {
     return _firestore
         .collection('emergency_contacts')
         .where(
-          'userId',
-          isEqualTo: userId,
-        )
+      'userId',
+      isEqualTo: userId,
+    )
         .limit(10)
         .snapshots()
         .handleError((e, stack) {
-      print("Emergency contacts stream error: $e");
+      print(
+        "Emergency contacts stream error: $e",
+      );
 
       print(stack);
     });
@@ -43,20 +70,50 @@ class EmergencyService {
 
   // DELETE EMERGENCY CONTACT
   Future<void> deleteEmergencyContact(
-    String contactId,
-  ) async {
-    await _firestore.collection('emergency_contacts').doc(contactId).delete();
+      String contactId,
+      String userId,
+      ) async {
+    final doc = await _firestore
+        .collection('emergency_contacts')
+        .doc(contactId)
+        .get()
+        .timeout(
+      const Duration(seconds: 10),
+    );
+
+    if (!doc.exists) {
+      throw Exception(
+        "Emergency contact not found",
+      );
+    }
+
+    final data = doc.data();
+
+    if (data?['userId'] != userId) {
+      throw Exception(
+        "Unauthorized contact deletion",
+      );
+    }
+
+    await _firestore
+        .collection('emergency_contacts')
+        .doc(contactId)
+        .delete()
+        .timeout(
+      const Duration(seconds: 10),
+    );
   }
 
   // CHECK EMERGENCY KEYWORDS
   List<String> getEmergencyKeywords(
-    String message,
-  ) {
+      String message,
+      ) {
     if (message.trim().isEmpty) {
       return [];
     }
 
-    final lowerMessage = message.toLowerCase().trim();
+    final lowerMessage =
+    message.toLowerCase().trim();
 
     final directPhrases = [
       'suicide',
@@ -69,9 +126,6 @@ class EmergencyService {
       'no reason to live',
       'jump off',
       'there is no reason to live',
-      'i am dying',
-      'im dying',
-      "i'm dying",
       'die today',
       'want to kill myself',
       'dont want to live',
@@ -83,39 +137,71 @@ class EmergencyService {
 
     final found = <String>[];
 
-    for (final phrase in directPhrases) {
-      if (lowerMessage.contains(phrase)) {
+    for (final phrase
+    in directPhrases) {
+      if (lowerMessage
+          .contains(phrase)) {
         found.add(phrase);
       }
     }
 
     final severePatterns = [
-      RegExp(r'\bi\s+am\s+dying\b'),
-      RegExp(r"\bi'?m\s+dying\b"),
-      RegExp(r'\bi\s+want\s+to\s+die\b'),
-      RegExp(r'\bi\s+want\s+to\s+kill\s+myself\b'),
-      RegExp(r'\bi\s+do\s+not\s+want\s+to\s+live\b'),
-      RegExp(r"\bi\s+don't\s+want\s+to\s+live\b"),
-      RegExp(r'\bi\s+cant\s+go\s+on\b'),
-      RegExp(r"\bi\s+can't\s+go\s+on\b"),
-      RegExp(r'\bkill\s+myself\b'),
-      RegExp(r'\bend\s+my\s+life\b'),
-      RegExp(r'\bhurt\s+myself\b'),
-      RegExp(r'\boverdose\b'),
-      RegExp(r'\bcut\s+myself\b'),
-      RegExp(r'\bno\s+reason\s+to\s+live\b'),
+      RegExp(
+        r'\bi\s+want\s+to\s+die\b',
+      ),
+      RegExp(
+        r'\bi\s+want\s+to\s+kill\s+myself\b',
+      ),
+      RegExp(
+        r'\bi\s+do\s+not\s+want\s+to\s+live\b',
+      ),
+      RegExp(
+        r"\bi\s+don't\s+want\s+to\s+live\b",
+      ),
+      RegExp(
+        r'\bi\s+cant\s+go\s+on\b',
+      ),
+      RegExp(
+        r"\bi\s+can't\s+go\s+on\b",
+      ),
+      RegExp(
+        r'\bkill\s+myself\b',
+      ),
+      RegExp(
+        r'\bend\s+my\s+life\b',
+      ),
+      RegExp(
+        r'\bhurt\s+myself\b',
+      ),
+      RegExp(
+        r'\boverdose\b',
+      ),
+      RegExp(
+        r'\bcut\s+myself\b',
+      ),
+      RegExp(
+        r'\bno\s+reason\s+to\s+live\b',
+      ),
       RegExp(
         r'\bthere\s+is\s+no\s+reason\s+to\s+live\b',
       ),
     ];
 
-    for (final pattern in severePatterns) {
-      final match = pattern.firstMatch(lowerMessage);
+    for (final pattern
+    in severePatterns) {
+      final match =
+      pattern.firstMatch(
+        lowerMessage,
+      );
 
       if (match != null) {
-        final matchedText = match.group(0);
+        final matchedText =
+        match.group(0);
 
-        if (matchedText != null && !found.contains(matchedText)) {
+        if (matchedText != null &&
+            !found.contains(
+              matchedText,
+            )) {
           found.add(matchedText);
         }
       }
@@ -129,37 +215,50 @@ class EmergencyService {
     required String userId,
     required String triggerType,
     required String detectedText,
-    required List<String> keywordsFound,
+    required List<String>
+    keywordsFound,
     int contactsNotified = 0,
   }) async {
-    await _firestore.collection('emergency_logs').add({
+    await _firestore
+        .collection('emergency_logs')
+        .add({
       'userId': userId,
-      'triggerType': triggerType,
-      'detectedText': detectedText,
-      'keywordsFound': keywordsFound,
-      'contactsNotified': contactsNotified,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      'triggerType':
+      triggerType,
+      'detectedText':
+      detectedText,
+      'keywordsFound':
+      keywordsFound,
+      'contactsNotified':
+      contactsNotified,
+      'createdAt':
+      FieldValue.serverTimestamp(),
+    }).timeout(
+      const Duration(seconds: 10),
+    );
   }
 
   // GET EMERGENCY LOGS
-  Stream<QuerySnapshot> getEmergencyLogs(
-    String userId,
-  ) {
+  Stream<QuerySnapshot>
+  getEmergencyLogs(
+      String userId,
+      ) {
     return _firestore
         .collection('emergency_logs')
         .where(
-          'userId',
-          isEqualTo: userId,
-        )
+      'userId',
+      isEqualTo: userId,
+    )
         .orderBy(
-          'createdAt',
-          descending: true,
-        )
+      'createdAt',
+      descending: true,
+    )
         .limit(20)
         .snapshots()
         .handleError((e, stack) {
-      print("Emergency logs stream error: $e");
+      print(
+        "Emergency logs stream error: $e",
+      );
 
       print(stack);
     });
@@ -169,49 +268,72 @@ class EmergencyService {
   Future<void> triggerEmergency({
     required String userId,
     required String message,
-    required List<String> keywordsFound,
-    String triggerType = "keyword_detection",
+    required List<String>
+    keywordsFound,
+    String triggerType =
+    "keyword_detection",
   }) async {
     int notifiedCount = 0;
 
     // CHECK COOLDOWN
-    final recentLogs = await _firestore
-        .collection('emergency_logs')
+    final recentLogs =
+    await _firestore
+        .collection(
+      'emergency_logs',
+    )
         .where(
-          'userId',
-          isEqualTo: userId,
-        )
+      'userId',
+      isEqualTo: userId,
+    )
         .orderBy(
-          'createdAt',
-          descending: true,
-        )
+      'createdAt',
+      descending: true,
+    )
         .limit(1)
         .get()
         .timeout(
-          const Duration(seconds: 10),
-        );
+      const Duration(
+        seconds: 10,
+      ),
+    );
 
-    if (recentLogs.docs.isNotEmpty) {
-      final lastLog = recentLogs.docs.first.data();
+    if (recentLogs
+        .docs.isNotEmpty) {
+      final lastLog =
+      recentLogs.docs.first.data();
 
-      final lastTimestamp = lastLog['createdAt'] as Timestamp?;
+      final lastTimestamp =
+      lastLog['createdAt']
+      as Timestamp?;
 
       if (lastTimestamp != null) {
-        final lastTime = lastTimestamp.toDate();
+        final lastTime =
+        lastTimestamp.toDate();
 
-        final now = DateTime.now();
+        final now =
+        DateTime.now();
 
-        final difference = now.difference(lastTime);
+        final difference =
+        now.difference(
+          lastTime,
+        );
 
-        if (difference.inMinutes < 10) {
-          print("⏳ Emergency cooldown active.");
+        if (difference.inMinutes <
+            10) {
+          print(
+            "⏳ Emergency cooldown active.",
+          );
 
           await saveEmergencyLog(
             userId: userId,
-            triggerType: triggerType,
-            detectedText: message,
-            keywordsFound: keywordsFound,
-            contactsNotified: 0,
+            triggerType:
+            triggerType,
+            detectedText:
+            message,
+            keywordsFound:
+            keywordsFound,
+            contactsNotified:
+            0,
           );
 
           return;
@@ -220,51 +342,72 @@ class EmergencyService {
     }
 
     // FETCH CONTACTS
-    final snapshot = await _firestore
-        .collection('emergency_contacts')
+    final snapshot =
+    await _firestore
+        .collection(
+      'emergency_contacts',
+    )
         .where(
-          'userId',
-          isEqualTo: userId,
-        )
+      'userId',
+      isEqualTo: userId,
+    )
         .get()
         .timeout(
-          const Duration(seconds: 10),
-        );
+      const Duration(
+        seconds: 10,
+      ),
+    );
 
     if (snapshot.docs.isEmpty) {
-      print("No emergency contacts found.");
+      print(
+        "No emergency contacts found.",
+      );
 
       return;
     }
 
     // SEND SMS PARALLEL
     await Future.wait(
-      snapshot.docs.map((doc) async {
-        final data = doc.data();
+      snapshot.docs.map(
+            (doc) async {
+          final data =
+          doc.data();
 
-        final phone = data['phone'];
+          final phone =
+          data['phone'];
 
-        final formattedPhone = _formatPhoneNumber(phone);
+          final formattedPhone =
+          _formatPhoneNumber(
+            phone,
+          );
 
-        await _sendEmergencySMS(
-          phone: formattedPhone,
-          userMessage: message,
-        );
+          await _sendEmergencySMS(
+            phone:
+            formattedPhone,
+            userMessage:
+            message,
+          );
 
-        notifiedCount++;
-      }),
+          notifiedCount++;
+        },
+      ),
     );
 
     // SAVE LOG
     await saveEmergencyLog(
       userId: userId,
-      triggerType: triggerType,
+      triggerType:
+      triggerType,
       detectedText: message,
-      keywordsFound: keywordsFound,
-      contactsNotified: notifiedCount,
+      keywordsFound:
+      keywordsFound,
+      contactsNotified:
+      notifiedCount,
     );
 
-    print("🚨 Emergency flow completed.");
+    print(
+      "🚨 Emergency flow completed.",
+    );
   }
 
   // SEND EMERGENCY SMS
@@ -273,7 +416,8 @@ class EmergencyService {
     required String userMessage,
   }) async {
     try {
-      final callable = FirebaseFunctions.instanceFor(
+      final callable =
+      FirebaseFunctions.instanceFor(
         region: 'us-central1',
       ).httpsCallable(
         'sendEmergencySMS',
@@ -281,7 +425,8 @@ class EmergencyService {
 
       await callable.call({
         "phone": phone,
-        "message": "🚨 Emergency Alert: "
+        "message":
+        "🚨 Emergency Alert: "
             "User may be in crisis.\n"
             "Message: $userMessage",
       }).timeout(
@@ -296,8 +441,8 @@ class EmergencyService {
 
   // FORMAT PHONE NUMBER
   String _formatPhoneNumber(
-    String phone,
-  ) {
+      String phone,
+      ) {
     phone = phone.trim();
 
     if (phone.startsWith('+')) {

@@ -5,17 +5,28 @@ import '../ai/ai_service.dart';
 import '../ai/gemini_provider.dart';
 
 class WellnessController extends ChangeNotifier {
-  final WellnessService _wellnessService = WellnessService();
-  final AIService _aiService = AIService(GeminiProvider());
-  final MoodClassifier _localClassifier = MoodClassifier();
+  final WellnessService _wellnessService =
+  WellnessService();
+
+  final AIService _aiService =
+  AIService(
+    GeminiProvider(),
+  );
+
+  final MoodClassifier _localClassifier =
+  MoodClassifier();
+
   WellnessController() {
     _initLocalClassifier();
   }
-  Future<void> _initLocalClassifier() async {
+
+  Future<void>
+  _initLocalClassifier() async {
     await _localClassifier.loadModel();
   }
 
   bool isLoading = false;
+
   String? errorMessage;
 
   void _setLoading(bool value) {
@@ -28,63 +39,108 @@ class WellnessController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Stream getMoodLogs(String userId) {
-    return _wellnessService.getMoodLogs(userId);
+  Stream getMoodLogs(
+      String userId,
+      ) {
+    return _wellnessService
+        .getMoodLogs(userId);
   }
 
   Stream getWellnessTips() {
-    return _wellnessService.getWellnessTips();
+    return _wellnessService
+        .getWellnessTips();
   }
 
-  // UPDATED analyzeManualMood()
-
+  // ANALYZE MANUAL MOOD
   Future<void> analyzeManualMood({
     required String userId,
     required String moodInput,
   }) async {
     if (moodInput.trim().isEmpty) {
-      _setError("Mood input cannot be empty");
+      _setError(
+        "Mood input cannot be empty",
+      );
+
       return;
     }
 
     _setLoading(true);
+
     _setError(null);
 
     try {
-      final localMood = _localClassifier.predict(moodInput);
+      final localMood =
+      _localClassifier.predict(
+        moodInput,
+      );
 
-      final aiResult = await _aiService
-          .getReply("User feels: $moodInput (detected mood: $localMood)")
-          .timeout(const Duration(seconds: 15));
+      final aiResult =
+      await _aiService
+          .getReply(
+        "User feels: "
+            "$moodInput "
+            "(detected mood: "
+            "$localMood)",
+      )
+          .timeout(
+        const Duration(
+          seconds: 15,
+        ),
+      );
 
-      String mood = moodInput;
-      List<dynamic> tips = [];
-      String activity = "";
+      String mood =
+          aiResult["mood"]
+              ?.toString() ??
+              localMood;
 
-      mood = aiResult["mood"]?.toString() ?? localMood;
+      final tips =
+      await _wellnessService
+          .getTipsForMood(
+        mood,
+      );
 
-      tips = await _wellnessService.getTipsForMood(mood);
+      final activity =
+          aiResult["activity"]
+              ?.toString() ??
+              "";
 
-      activity = aiResult["activity"]?.toString() ?? "";
-
-      await _wellnessService.addMoodLog(
+      await _wellnessService
+          .addMoodLog(
         userId: userId,
         mood: mood,
         note: activity,
         tips: tips,
       );
+
+      _setError(null);
     } catch (e) {
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<String?> getLatestMood(String userId) async {
+  Future<String?> getLatestMood(
+      String userId,
+      ) async {
     try {
-      return await _wellnessService.fetchLatestMood(userId);
+      return await _wellnessService
+          .fetchLatestMood(
+        userId,
+      );
     } catch (e) {
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
+
       return null;
     }
   }
@@ -96,32 +152,56 @@ class WellnessController extends ChangeNotifier {
     bool isManual = true,
   }) async {
     if (mood.trim().isEmpty) {
-      _setError("Mood cannot be empty");
+      _setError(
+        "Mood cannot be empty",
+      );
+
       return;
     }
 
     _setLoading(true);
+
     _setError(null);
 
     try {
-      await _wellnessService.addMoodLog(
+      await _wellnessService
+          .addMoodLog(
         userId: userId,
         mood: mood,
         note: note ?? "",
       );
+
+      _setError(null);
     } catch (e) {
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
     } finally {
       _setLoading(false);
     }
   }
 
-  /// ✅ FIXED: NOW INSIDE CLASS
-  Future<void> deleteLatestMood(String userId) async {
+  // DELETE LATEST MOOD
+  Future<void> deleteLatestMood(
+      String userId,
+      ) async {
     try {
-      await _wellnessService.deleteLatestMood(userId);
+      await _wellnessService
+          .deleteLatestMood(
+        userId,
+      );
+
+      _setError(null);
     } catch (e) {
-      _setError(e.toString());
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
     }
   }
 }

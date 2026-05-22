@@ -89,7 +89,10 @@ class _EmergencyScreenState extends State<EmergencyScreen>
 
     if (confirm != true) return;
 
-    await widget.emergencyController.deleteContact(contactId);
+    await widget.emergencyController.deleteContact(
+      contactId,
+      widget.userId,
+    );
 
     if (!mounted) return;
 

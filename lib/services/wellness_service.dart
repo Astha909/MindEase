@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class WellnessService {
@@ -158,13 +160,18 @@ class WellnessService {
     String? note,
     List<dynamic>? tips,
   }) async {
-    if (userId.isEmpty || mood.isEmpty) {
-      throw Exception("Invalid mood log data");
+    if (
+    userId.trim().isEmpty ||
+        mood.trim().isEmpty
+    ) {
+      throw Exception(
+        "Invalid mood log data",
+      );
     }
     await _firestore.collection('mood_logs').add({
       'userId': userId,
-      'mood': mood,
-      'note': note ?? '',
+      'mood': mood.trim(),
+      'note': note?.trim() ?? '',
       'tips': tips ?? [],
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -205,10 +212,19 @@ class WellnessService {
   Future<void> deleteLatestMood(String userId) async {
     final snapshot = await _firestore
         .collection('mood_logs')
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
+        .where(
+      'userId',
+      isEqualTo: userId,
+    )
+        .orderBy(
+      'createdAt',
+      descending: true,
+    )
         .limit(1)
-        .get();
+        .get()
+        .timeout(
+      const Duration(seconds: 10),
+    );
 
     if (snapshot.docs.isNotEmpty) {
       await snapshot.docs.first.reference.delete();

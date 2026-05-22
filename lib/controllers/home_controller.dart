@@ -6,50 +6,65 @@ import 'wellness_controller.dart';
 import 'emergency_controller.dart';
 
 class HomeController extends ChangeNotifier {
-  late final EmergencyController emergencyController;
-  late final ChatController chatController;
-  late final WellnessController wellnessController;
-  late final ProfileController profileController;
+  late final EmergencyController
+  emergencyController;
+
+  late final ChatController
+  chatController;
+
+  late final WellnessController
+  wellnessController;
+
+  late final ProfileController
+  profileController;
 
   HomeController() {
-    emergencyController = EmergencyController();
+    emergencyController =
+        EmergencyController();
 
-    chatController = ChatController(
-      emergencyController: emergencyController,
-    );
+    chatController =
+        ChatController(
+          emergencyController:
+          emergencyController,
+        );
 
-    wellnessController = WellnessController();
-    profileController = ProfileController();
+    wellnessController =
+        WellnessController();
+
+    profileController =
+        ProfileController();
   }
 
   int selectedIndex = 0;
 
   void changeTab(int index) {
     selectedIndex = index;
+
     notifyListeners();
   }
 
   void openChat() {
-    selectedIndex = 0;
-    notifyListeners();
+    changeTab(0);
   }
 
   void openMood() {
-    selectedIndex = 1;
-    notifyListeners();
+    changeTab(1);
   }
 
   void openEmergency() {
-    selectedIndex = 2;
-    notifyListeners();
+    changeTab(2);
   }
 
   @override
   void dispose() {
     emergencyController.dispose();
+
     chatController.dispose();
+
     wellnessController.dispose();
+
     profileController.dispose();
+
     super.dispose();
   }
 }

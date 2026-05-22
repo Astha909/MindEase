@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_functions/cloud_functions.dart';
 
 import 'ai_provider.dart';
@@ -16,15 +18,21 @@ class GeminiProvider implements AIProvider {
 
       final response = await callable.call({
         "message": message,
-      }).timeout(
-        const Duration(seconds: 20),
-      );
+      }).timeout(const Duration(seconds: 12));
 
       if (response.data == null) {
         throw Exception("Empty AI response");
       }
 
-      final data = Map<String, dynamic>.from(response.data);
+      if (response.data is! Map) {
+        throw Exception(
+          "Invalid AI response format",
+        );
+      }
+
+      final data = Map<String, dynamic>.from(
+        response.data,
+      );
 
       return {
         "mood": data["mood"]?.toString() ?? "neutral",
@@ -39,14 +47,9 @@ class GeminiProvider implements AIProvider {
 
       print(stack);
 
-      return {
-        "mood": "neutral",
-        "chat_reply": "I'm here with you.",
-        "tips": [],
-        "activity": "",
-        "is_crisis": false,
-        "crisis_level": "none",
-      };
+      throw Exception(
+        "AI response unavailable right now",
+      );
     }
   }
 }
