@@ -1,20 +1,24 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart'
+as tz;
+import 'package:timezone/data/latest.dart'
+as tz;
 
 class NotificationService {
-  final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin
+  _notifications =
+  FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
     tz.initializeTimeZones();
 
-    const androidSettings = AndroidInitializationSettings(
+    const androidSettings =
+    AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
 
-    const settings = InitializationSettings(
+    const settings =
+    InitializationSettings(
       android: androidSettings,
     );
 
@@ -28,14 +32,16 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    const androidDetails =
+    AndroidNotificationDetails(
       'daily_checkin_channel',
       'Daily Check-In',
       importance: Importance.high,
       priority: Priority.high,
     );
 
-    const notificationDetails = NotificationDetails(
+    const notificationDetails =
+    NotificationDetails(
       android: androidDetails,
     );
 
@@ -43,15 +49,54 @@ class NotificationService {
       id,
       title,
       body,
-      tz.TZDateTime.now(
-        tz.local,
-      ).add(
-        const Duration(seconds: 5),
+      _nextInstanceOfTime(
+        hour: 21,
+        minute: 0,
       ),
       notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode:
+      AndroidScheduleMode
+          .exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+      UILocalNotificationDateInterpretation
+          .absoluteTime,
+      matchDateTimeComponents:
+      DateTimeComponents.time,
     );
+  }
+
+  Future<void> cancelReminder(
+      int id,
+      ) async {
+    await _notifications.cancel(id);
+  }
+
+  tz.TZDateTime _nextInstanceOfTime({
+    required int hour,
+    required int minute,
+  }) {
+    final now =
+    tz.TZDateTime.now(
+      tz.local,
+    );
+
+    var scheduledDate =
+    tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate =
+          scheduledDate.add(
+            const Duration(days: 1),
+          );
+    }
+
+    return scheduledDate;
   }
 }

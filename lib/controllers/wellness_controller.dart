@@ -176,12 +176,72 @@ class WellnessController extends ChangeNotifier {
     required String userId,
     required String time,
     required bool enabled,
-  }) {
-    return _wellnessService.saveReminder(
-      userId: userId,
-      time: time,
-      enabled: enabled,
-    );
+  }) async {
+    try {
+      await _wellnessService.saveReminder(
+        userId: userId,
+        time: time,
+        enabled: enabled,
+      );
+
+      if (enabled) {
+        await _notificationService
+            .showDailyReminder(
+          id: 1,
+          title: 'Daily Check-In',
+          body:
+          'How are you feeling today?',
+        );
+      } else {
+        await _notificationService
+            .cancelReminder(1);
+      }
+
+      _setError(null);
+    } catch (e) {
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
+    }
+  }
+
+  Future<void> restoreReminder(
+      String userId,
+      ) async {
+    try {
+      final reminder =
+      await _wellnessService
+          .getReminder(userId);
+
+      if (reminder == null) {
+        return;
+      }
+
+      final enabled =
+          reminder['enabled'] ?? false;
+
+      if (enabled) {
+        await _notificationService
+            .showDailyReminder(
+          id: 1,
+          title: 'Daily Check-In',
+          body:
+          'How are you feeling today?',
+        );
+      }
+
+      _setError(null);
+    } catch (e) {
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
+      );
+    }
   }
 
   Future<Map<String, dynamic>?> getReminder(
@@ -265,6 +325,22 @@ class WellnessController extends ChangeNotifier {
               "Exception: ",
               "",
             ),
+      );
+    }
+  }
+
+  Future<void> cancelReminder() async {
+    try {
+      await _notificationService
+          .cancelReminder(1);
+
+      _setError(null);
+    } catch (e) {
+      _setError(
+        e.toString().replaceFirst(
+          "Exception: ",
+          "",
+        ),
       );
     }
   }
